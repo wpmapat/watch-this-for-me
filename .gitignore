@@ -1,0 +1,21 @@
+## .NET / Visual Studio
+bin/
+obj/
+out/
+*.user
+*.suo
+.vs/
+
+## Rider / VS Code
+.idea/
+.vscode/
+
+## Environment / secrets
+*.env
+.env
+appsettings.*.local.json
+local.settings.json
+
+## OS
+.DS_Store
+Thumbs.db
