@@ -16,15 +16,15 @@ last bit into the next session if something runs over.
 
 - **Active week:** Week 1 — Foundation + basic monitoring
 - **Active branch:** `feature/week1-foundation`
-- **Last updated:** 2026-10-04
+- **Last updated:** 2026-10-05
 
 ### Done so far
 - [x] GitHub repo created (`watch-this-for-me`)
 - [x] Solution scaffolded — Api / Core / Infrastructure / Web / Tests
 - [x] `Watch` domain model + supporting enums (Core)
 - [x] Cosmos DB storage layer — `IWatchRepository`, `CosmosWatchRepository`, startup initializer, DI wiring
-- [ ] Verify Cosmos DB Emulator connection end-to-end *(next up)*
-- [ ] Watch CRUD API endpoints
+- [x] Verify Cosmos DB Emulator connection end-to-end (via native Windows emulator install + integration test)
+- [ ] Watch CRUD API endpoints *(next up)*
 - [ ] Web page connector
 - [ ] Observation storage + basic change detection
 - [ ] Scheduler
@@ -37,7 +37,7 @@ Goal: a working end-to-end system, almost no AI yet.
 
 | Date | Day | Hrs | Focus | Status |
 |---|---|---|---|---|
-| Oct 5 | Mon | 2h | Verify Cosmos DB Emulator connection | [ ] |
+| Oct 5 | Mon | 2h | Verify Cosmos DB Emulator connection | [x] |
 | Oct 6 | Tue | 3h | Watch CRUD API endpoints | [ ] |
 | Oct 7 | Wed | 3h | Web page connector | [ ] |
 | Oct 8 | Thu | 3h | Observation storage + basic change detection | [ ] |
