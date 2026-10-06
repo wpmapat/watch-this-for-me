@@ -16,7 +16,7 @@ last bit into the next session if something runs over.
 
 - **Active week:** Week 1 — Foundation + basic monitoring
 - **Active branch:** `feature/week1-foundation`
-- **Last updated:** 2026-10-05
+- **Last updated:** 2026-10-06
 
 ### Done so far
 - [x] GitHub repo created (`watch-this-for-me`)
@@ -24,8 +24,8 @@ last bit into the next session if something runs over.
 - [x] `Watch` domain model + supporting enums (Core)
 - [x] Cosmos DB storage layer — `IWatchRepository`, `CosmosWatchRepository`, startup initializer, DI wiring
 - [x] Verify Cosmos DB Emulator connection end-to-end (via native Windows emulator install + integration test)
-- [ ] Watch CRUD API endpoints *(next up)*
-- [ ] Web page connector
+- [x] Watch CRUD API endpoints (manually smoke-tested: create/get/list/update/delete all work)
+- [ ] Web page connector *(next up)*
 - [ ] Observation storage + basic change detection
 - [ ] Scheduler
 - [ ] NL → structured watch config (minimal AI)
@@ -38,7 +38,7 @@ Goal: a working end-to-end system, almost no AI yet.
 | Date | Day | Hrs | Focus | Status |
 |---|---|---|---|---|
 | Oct 5 | Mon | 2h | Verify Cosmos DB Emulator connection | [x] |
-| Oct 6 | Tue | 3h | Watch CRUD API endpoints | [ ] |
+| Oct 6 | Tue | 3h | Watch CRUD API endpoints | [x] |
 | Oct 7 | Wed | 3h | Web page connector | [ ] |
 | Oct 8 | Thu | 3h | Observation storage + basic change detection | [ ] |
 | Oct 9 | Fri | 3h | Scheduler + minimal AI + basic UI | [ ] |
