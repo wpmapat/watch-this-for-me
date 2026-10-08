@@ -16,7 +16,7 @@ last bit into the next session if something runs over.
 
 - **Active week:** Week 1 — Foundation + basic monitoring
 - **Active branch:** `feature/week1-foundation`
-- **Last updated:** 2026-10-07
+- **Last updated:** 2026-10-08
 
 ### Done so far
 - [x] GitHub repo created (`watch-this-for-me`)
@@ -26,8 +26,8 @@ last bit into the next session if something runs over.
 - [x] Verify Cosmos DB Emulator connection end-to-end (via native Windows emulator install + integration test)
 - [x] Watch CRUD API endpoints (manually smoke-tested: create/get/list/update/delete all work)
 - [x] Web page connector (`ISourceFetcher`/`WebPageSourceFetcher`, HTML normalization + content hashing, tested against a live URL)
-- [ ] Observation storage + basic change detection *(next up)*
-- [ ] Scheduler
+- [x] Observation storage + basic change detection (`WatchCheckService`, manual `POST /api/watches/{id}/check`, verified repeat checks don't duplicate unchanged observations)
+- [ ] Scheduler *(next up)*
 - [ ] NL → structured watch config (minimal AI)
 
 ---
@@ -40,7 +40,7 @@ Goal: a working end-to-end system, almost no AI yet.
 | Oct 5 | Mon | 2h | Verify Cosmos DB Emulator connection | [x] |
 | Oct 6 | Tue | 3h | Watch CRUD API endpoints | [x] |
 | Oct 7 | Wed | 3h | Web page connector | [x] |
-| Oct 8 | Thu | 3h | Observation storage + basic change detection | [ ] |
+| Oct 8 | Thu | 3h | Observation storage + basic change detection | [x] |
 | Oct 9 | Fri | 3h | Scheduler + minimal AI + basic UI | [ ] |
 
 **Mon Oct 5 — Verify Cosmos DB Emulator connection.** Get the local
