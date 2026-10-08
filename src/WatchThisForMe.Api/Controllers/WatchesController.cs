@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Mvc;
 using WatchThisForMe.Api.Contracts;
+using WatchThisForMe.Core.Observations;
 using WatchThisForMe.Core.Watches;
+using WatchThisForMe.Infrastructure.Monitoring;
 
 namespace WatchThisForMe.Api.Controllers;
 
 [ApiController]
 [Route("api/watches")]
-public class WatchesController(IWatchRepository repository) : ControllerBase
+public class WatchesController(IWatchRepository repository, WatchCheckService checkService) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<Watch>> Create(CreateWatchRequest request, CancellationToken cancellationToken)
@@ -78,5 +80,12 @@ public class WatchesController(IWatchRepository repository) : ControllerBase
 
         await repository.DeleteAsync(id, cancellationToken);
         return NoContent();
+    }
+
+    [HttpPost("{id}/check")]
+    public async Task<ActionResult<Observation>> Check(string id, CancellationToken cancellationToken)
+    {
+        var observation = await checkService.CheckAsync(id, cancellationToken);
+        return observation is null ? NotFound() : Ok(observation);
     }
 }

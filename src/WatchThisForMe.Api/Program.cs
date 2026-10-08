@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using WatchThisForMe.Infrastructure.Cosmos;
+using WatchThisForMe.Infrastructure.Monitoring;
 using WatchThisForMe.Infrastructure.Sources;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +13,7 @@ builder.Services.AddControllers()
 builder.Services.AddOpenApi();
 builder.Services.AddCosmosDb(builder.Configuration);
 builder.Services.AddSourceFetchers();
+builder.Services.AddMonitoring();
 
 var app = builder.Build();
 

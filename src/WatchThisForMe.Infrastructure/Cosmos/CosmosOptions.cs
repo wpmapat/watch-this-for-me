@@ -10,5 +10,7 @@ public class CosmosOptions
 
     public string WatchesContainerName { get; set; } = "Watches";
 
+    public string ObservationsContainerName { get; set; } = "Observations";
+
     public bool IsEmulator { get; set; }
 }
