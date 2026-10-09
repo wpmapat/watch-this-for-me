@@ -13,7 +13,7 @@ builder.Services.AddControllers()
 builder.Services.AddOpenApi();
 builder.Services.AddCosmosDb(builder.Configuration);
 builder.Services.AddSourceFetchers();
-builder.Services.AddMonitoring();
+builder.Services.AddMonitoring(builder.Configuration);
 
 var app = builder.Build();
 
