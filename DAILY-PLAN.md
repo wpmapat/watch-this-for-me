@@ -16,7 +16,8 @@ last bit into the next session if something runs over.
 
 - **Active week:** Week 1 — Foundation + basic monitoring
 - **Active branch:** `feature/week1-foundation`
-- **Last updated:** 2026-10-08
+- **Last updated:** 2026-10-12
+- **Week 1 status:** Complete — not yet merged to `master` (PR still open on `feature/week1-foundation`)
 
 ### Done so far
 - [x] GitHub repo created (`watch-this-for-me`)
@@ -27,8 +28,9 @@ last bit into the next session if something runs over.
 - [x] Watch CRUD API endpoints (manually smoke-tested: create/get/list/update/delete all work)
 - [x] Web page connector (`ISourceFetcher`/`WebPageSourceFetcher`, HTML normalization + content hashing, tested against a live URL)
 - [x] Observation storage + basic change detection (`WatchCheckService`, manual `POST /api/watches/{id}/check`, verified repeat checks don't duplicate unchanged observations)
-- [ ] Scheduler *(next up)*
-- [ ] NL → structured watch config (minimal AI)
+- [x] Scheduler (`WatchScheduler` background service, verified a watch gets auto-checked with no manual trigger)
+- [x] NL → structured watch config via OpenAI (`POST /api/watches/from-natural-language`, direct HTTP call to OpenAI's Responses API)
+- [x] Basic Blazor UI (`/watches` page — list + natural-language creation form), verified end-to-end in a real browser
 
 ---
 
@@ -41,7 +43,7 @@ Goal: a working end-to-end system, almost no AI yet.
 | Oct 6 | Tue | 3h | Watch CRUD API endpoints | [x] |
 | Oct 7 | Wed | 3h | Web page connector | [x] |
 | Oct 8 | Thu | 3h | Observation storage + basic change detection | [x] |
-| Oct 9 | Fri | 3h | Scheduler + minimal AI + basic UI | [ ] |
+| Oct 9 | Fri | 3h | Scheduler + minimal AI + basic UI | [x] |
 
 **Mon Oct 5 — Verify Cosmos DB Emulator connection.** Get the local
 emulator running and confirm the storage layer actually works.
