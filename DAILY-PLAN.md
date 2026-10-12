@@ -14,23 +14,20 @@ last bit into the next session if something runs over.
 
 ## Current Status
 
-- **Active week:** Week 2 — Semantic change detection (not yet started)
-- **Active branch:** `master` (no Week 2 branch cut yet)
+- **Active week:** Week 2 — Semantic change detection
+- **Active branch:** `feature/week2-semantic-change-detection`
 - **Last updated:** 2026-10-12
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 
 ### Done so far
-- [x] GitHub repo created (`watch-this-for-me`)
-- [x] Solution scaffolded — Api / Core / Infrastructure / Web / Tests
-- [x] `Watch` domain model + supporting enums (Core)
-- [x] Cosmos DB storage layer — `IWatchRepository`, `CosmosWatchRepository`, startup initializer, DI wiring
-- [x] Verify Cosmos DB Emulator connection end-to-end (via native Windows emulator install + integration test)
-- [x] Watch CRUD API endpoints (manually smoke-tested: create/get/list/update/delete all work)
-- [x] Web page connector (`ISourceFetcher`/`WebPageSourceFetcher`, HTML normalization + content hashing, tested against a live URL)
-- [x] Observation storage + basic change detection (`WatchCheckService`, manual `POST /api/watches/{id}/check`, verified repeat checks don't duplicate unchanged observations)
-- [x] Scheduler (`WatchScheduler` background service, verified a watch gets auto-checked with no manual trigger)
-- [x] NL → structured watch config via OpenAI (`POST /api/watches/from-natural-language`, direct HTTP call to OpenAI's Responses API)
-- [x] Basic Blazor UI (`/watches` page — list + natural-language creation form), verified end-to-end in a real browser
+**Week 1** — GitHub repo, solution scaffold, `Watch` domain model, Cosmos DB storage, Watch CRUD API, web page connector, observation storage + change detection, scheduler, NL→watch via OpenAI, basic Blazor UI. (Full detail in the Week 1 section below.)
+
+**Week 2**
+- [x] Content normalization — `VolatileContentNormalizer` replaces timestamps/dates/counters with stable placeholders before hashing, so noise doesn't register as a "change"
+- [ ] Document snapshot history *(next up)*
+- [ ] Basic textual diff
+- [ ] LLM semantic classification
+- [ ] Wire pipeline end-to-end
 
 ---
 
@@ -80,7 +77,7 @@ Goal: tell "page changed" apart from "something important changed."
 
 | Date | Day | Hrs | Focus | Status |
 |---|---|---|---|---|
-| Oct 12 | Mon | 2h | Content normalization | [ ] |
+| Oct 12 | Mon | 2h | Content normalization | [x] |
 | Oct 13 | Tue | 3h | Document snapshot history | [ ] |
 | Oct 14 | Wed | 3h | Basic textual diff | [ ] |
 | Oct 15 | Thu | 3h | LLM semantic classification | [ ] |
