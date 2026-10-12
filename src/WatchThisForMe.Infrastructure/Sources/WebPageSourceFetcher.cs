@@ -11,8 +11,9 @@ public class WebPageSourceFetcher(HttpClient httpClient) : ISourceFetcher
     {
         var html = await httpClient.GetStringAsync(source, cancellationToken);
         var normalized = HtmlNormalizer.Normalize(html);
-        var hash = ContentHasher.Compute(normalized);
+        var stable = VolatileContentNormalizer.Normalize(normalized);
+        var hash = ContentHasher.Compute(stable);
 
-        return new SourceSnapshot(normalized, hash, DateTimeOffset.UtcNow);
+        return new SourceSnapshot(stable, hash, DateTimeOffset.UtcNow);
     }
 }
