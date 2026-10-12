@@ -1,0 +1,126 @@
+@page "/watches"
+@rendermode InteractiveServer
+@using System.Net.Http.Json
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using WatchThisForMe.Core.Watches
+@inject IHttpClientFactory HttpClientFactory
+
+<PageTitle>Watches</PageTitle>
+
+<h1>My Watches</h1>
+
+<div class="mb-4">
+    <label class="form-label">Describe what you want to watch</label>
+    <textarea class="form-control" rows="2" @bind="naturalLanguageRequest"></textarea>
+    <button class="btn btn-primary mt-2" @onclick="CreateFromNaturalLanguage" disabled="@isCreating">
+        @(isCreating ? "Creating..." : "Create Watch")
+    </button>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <p class="text-danger mt-2">@errorMessage</p>
+    }
+</div>
+
+@if (watches is null)
+{
+    <p>Loading...</p>
+}
+else if (watches.Count == 0)
+{
+    <p>No watches yet. Create one above.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Source</th>
+                <th>Type</th>
+                <th>Frequency</th>
+                <th>Status</th>
+                <th>Last Checked</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var watch in watches)
+            {
+                <tr>
+                    <td>@watch.Name</td>
+                    <td>@watch.Source</td>
+                    <td>@watch.SourceType</td>
+                    <td>@watch.CheckFrequency</td>
+                    <td>@watch.Status</td>
+                    <td>@(watch.LastCheckedAt?.ToLocalTime().ToString("g") ?? "Never")</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteWatch(watch.Id)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    private List<Watch>? watches;
+    private string naturalLanguageRequest = string.Empty;
+    private bool isCreating;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadWatchesAsync();
+    }
+
+    private async Task LoadWatchesAsync()
+    {
+        var client = HttpClientFactory.CreateClient("Api");
+        watches = await client.GetFromJsonAsync<List<Watch>>("api/watches", JsonOptions) ?? [];
+    }
+
+    private async Task CreateFromNaturalLanguage()
+    {
+        if (string.IsNullOrWhiteSpace(naturalLanguageRequest))
+        {
+            return;
+        }
+
+        isCreating = true;
+        errorMessage = null;
+
+        try
+        {
+            var client = HttpClientFactory.CreateClient("Api");
+            var response = await client.PostAsJsonAsync("api/watches/from-natural-language", new { request = naturalLanguageRequest });
+
+            if (response.IsSuccessStatusCode)
+            {
+                naturalLanguageRequest = string.Empty;
+                await LoadWatchesAsync();
+            }
+            else
+            {
+                errorMessage = $"Failed to create watch ({(int)response.StatusCode}).";
+            }
+        }
+        finally
+        {
+            isCreating = false;
+        }
+    }
+
+    private async Task DeleteWatch(string id)
+    {
+        var client = HttpClientFactory.CreateClient("Api");
+        await client.DeleteAsync($"api/watches/{id}");
+        await LoadWatchesAsync();
+    }
+}
