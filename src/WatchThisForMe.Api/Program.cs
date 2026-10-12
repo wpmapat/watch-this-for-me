@@ -1,12 +1,25 @@
+using System.Text.Json.Serialization;
+using WatchThisForMe.Infrastructure.Ai;
+using WatchThisForMe.Infrastructure.Cosmos;
+using WatchThisForMe.Infrastructure.Monitoring;
+using WatchThisForMe.Infrastructure.Sources;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options => options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+builder.Services.AddCosmosDb(builder.Configuration);
+builder.Services.AddSourceFetchers();
+builder.Services.AddMonitoring(builder.Configuration);
+builder.Services.AddAiInterpretation(builder.Configuration);
 
 var app = builder.Build();
+
+await app.Services.GetRequiredService<CosmosDbInitializer>().InitializeAsync();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
