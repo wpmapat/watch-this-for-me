@@ -8,7 +8,10 @@ namespace WatchThisForMe.Api.Controllers;
 
 [ApiController]
 [Route("api/watches")]
-public class WatchesController(IWatchRepository repository, WatchCheckService checkService) : ControllerBase
+public class WatchesController(
+    IWatchRepository repository,
+    WatchCheckService checkService,
+    IWatchRequestInterpreter requestInterpreter) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<Watch>> Create(CreateWatchRequest request, CancellationToken cancellationToken)
@@ -87,5 +90,29 @@ public class WatchesController(IWatchRepository repository, WatchCheckService ch
     {
         var observation = await checkService.CheckAsync(id, cancellationToken);
         return observation is null ? NotFound() : Ok(observation);
+    }
+
+    [HttpPost("from-natural-language")]
+    public async Task<ActionResult<Watch>> CreateFromNaturalLanguage(InterpretWatchRequest request, CancellationToken cancellationToken)
+    {
+        var draft = await requestInterpreter.InterpretAsync(request.Request, cancellationToken);
+
+        var watch = new Watch
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = draft.Name,
+            UserRequest = request.Request,
+            Source = draft.Source,
+            SourceType = draft.SourceType,
+            CheckFrequency = draft.CheckFrequency,
+            MeaningfulChangeCriteria = draft.MeaningfulChangeCriteria,
+            InvestigationInstructions = draft.InvestigationInstructions,
+            NotificationPolicy = draft.NotificationPolicy,
+            NotificationChannel = draft.NotificationChannel,
+            CreatedAt = DateTimeOffset.UtcNow
+        };
+
+        var created = await repository.CreateAsync(watch, cancellationToken);
+        return CreatedAtAction(nameof(Get), new { id = created.Id }, created);
     }
 }
