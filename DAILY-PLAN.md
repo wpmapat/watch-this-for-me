@@ -14,10 +14,10 @@ last bit into the next session if something runs over.
 
 ## Current Status
 
-- **Active week:** Week 1 — Foundation + basic monitoring
-- **Active branch:** `feature/week1-foundation`
+- **Active week:** Week 2 — Semantic change detection (not yet started)
+- **Active branch:** `master` (no Week 2 branch cut yet)
 - **Last updated:** 2026-10-12
-- **Week 1 status:** Complete — not yet merged to `master` (PR still open on `feature/week1-foundation`)
+- **Week 1 status:** Complete and merged to `master` (PR #2)
 
 ### Done so far
 - [x] GitHub repo created (`watch-this-for-me`)
