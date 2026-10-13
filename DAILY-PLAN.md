@@ -16,7 +16,7 @@ last bit into the next session if something runs over.
 
 - **Active week:** Week 2 — Semantic change detection
 - **Active branch:** `feature/week2-semantic-change-detection`
-- **Last updated:** 2026-10-12
+- **Last updated:** 2026-10-13
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 
 ### Done so far
@@ -24,8 +24,8 @@ last bit into the next session if something runs over.
 
 **Week 2**
 - [x] Content normalization — `VolatileContentNormalizer` replaces timestamps/dates/counters with stable placeholders before hashing, so noise doesn't register as a "change"
-- [ ] Document snapshot history *(next up)*
-- [ ] Basic textual diff
+- [x] Document snapshot history — `Observation` now stores `NormalizedContent`; repository supports fetching the last N observations and pruning beyond a 10-per-watch cap
+- [ ] Basic textual diff *(next up)*
 - [ ] LLM semantic classification
 - [ ] Wire pipeline end-to-end
 
@@ -78,7 +78,7 @@ Goal: tell "page changed" apart from "something important changed."
 | Date | Day | Hrs | Focus | Status |
 |---|---|---|---|---|
 | Oct 12 | Mon | 2h | Content normalization | [x] |
-| Oct 13 | Tue | 3h | Document snapshot history | [ ] |
+| Oct 13 | Tue | 3h | Document snapshot history | [x] |
 | Oct 14 | Wed | 3h | Basic textual diff | [ ] |
 | Oct 15 | Thu | 3h | LLM semantic classification | [ ] |
 | Oct 16 | Fri | 3h | Wire pipeline end-to-end | [ ] |
