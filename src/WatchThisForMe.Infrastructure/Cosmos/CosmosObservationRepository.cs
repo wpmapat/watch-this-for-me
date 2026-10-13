@@ -39,14 +39,17 @@ public class CosmosObservationRepository : IObservationRepository
         return page.FirstOrDefault();
     }
 
-    public async Task<IReadOnlyList<Observation>> ListAsync(string watchId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Observation>> ListAsync(string watchId, int? maxCount = null, CancellationToken cancellationToken = default)
     {
         var queryOptions = new QueryRequestOptions { PartitionKey = new PartitionKey(watchId) };
-        var results = new List<Observation>();
-        using var iterator = _container.GetItemLinqQueryable<Observation>(requestOptions: queryOptions)
+        var queryable = _container.GetItemLinqQueryable<Observation>(requestOptions: queryOptions)
             .Where(o => o.WatchId == watchId)
-            .OrderByDescending(o => o.CheckedAt)
-            .ToFeedIterator();
+            .OrderByDescending(o => o.CheckedAt);
+
+        var limited = maxCount is { } limit ? queryable.Take(limit) : queryable;
+
+        var results = new List<Observation>();
+        using var iterator = limited.ToFeedIterator();
 
         while (iterator.HasMoreResults)
         {
@@ -57,5 +60,10 @@ public class CosmosObservationRepository : IObservationRepository
         }
 
         return results;
+    }
+
+    public async Task DeleteAsync(string id, string watchId, CancellationToken cancellationToken = default)
+    {
+        await _container.DeleteItemAsync<Observation>(id, new PartitionKey(watchId), cancellationToken: cancellationToken);
     }
 }

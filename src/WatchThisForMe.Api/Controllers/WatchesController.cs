@@ -10,6 +10,7 @@ namespace WatchThisForMe.Api.Controllers;
 [Route("api/watches")]
 public class WatchesController(
     IWatchRepository repository,
+    IObservationRepository observationRepository,
     WatchCheckService checkService,
     IWatchRequestInterpreter requestInterpreter) : ControllerBase
 {
@@ -90,6 +91,13 @@ public class WatchesController(
     {
         var observation = await checkService.CheckAsync(id, cancellationToken);
         return observation is null ? NotFound() : Ok(observation);
+    }
+
+    [HttpGet("{id}/observations")]
+    public async Task<ActionResult<IReadOnlyList<Observation>>> ListObservations(string id, [FromQuery] int count = 10, CancellationToken cancellationToken = default)
+    {
+        var observations = await observationRepository.ListAsync(id, count, cancellationToken);
+        return Ok(observations);
     }
 
     [HttpPost("from-natural-language")]

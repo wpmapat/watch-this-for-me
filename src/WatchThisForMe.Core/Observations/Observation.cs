@@ -10,5 +10,7 @@ public class Observation
 
     public required string ContentHash { get; set; }
 
+    public required string NormalizedContent { get; set; }
+
     public required bool Changed { get; set; }
 }

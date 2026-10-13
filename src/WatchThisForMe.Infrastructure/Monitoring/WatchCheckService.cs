@@ -9,6 +9,8 @@ public class WatchCheckService(
     IObservationRepository observationRepository,
     ISourceFetcher sourceFetcher)
 {
+    private const int MaxObservationsPerWatch = 10;
+
     public async Task<Observation?> CheckAsync(string watchId, CancellationToken cancellationToken = default)
     {
         var watch = await watchRepository.GetAsync(watchId, cancellationToken);
@@ -35,9 +37,23 @@ public class WatchCheckService(
             WatchId = watchId,
             CheckedAt = DateTimeOffset.UtcNow,
             ContentHash = snapshot.ContentHash,
+            NormalizedContent = snapshot.NormalizedContent,
             Changed = true
         };
 
-        return await observationRepository.CreateAsync(observation, cancellationToken);
+        var created = await observationRepository.CreateAsync(observation, cancellationToken);
+        await PruneOldObservationsAsync(watchId, cancellationToken);
+
+        return created;
+    }
+
+    private async Task PruneOldObservationsAsync(string watchId, CancellationToken cancellationToken)
+    {
+        var all = await observationRepository.ListAsync(watchId, cancellationToken: cancellationToken);
+
+        foreach (var stale in all.Skip(MaxObservationsPerWatch))
+        {
+            await observationRepository.DeleteAsync(stale.Id, watchId, cancellationToken);
+        }
     }
 }
