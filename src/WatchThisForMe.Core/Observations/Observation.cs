@@ -13,4 +13,6 @@ public class Observation
     public required string NormalizedContent { get; set; }
 
     public required bool Changed { get; set; }
+
+    public string? DiffSummary { get; set; }
 }

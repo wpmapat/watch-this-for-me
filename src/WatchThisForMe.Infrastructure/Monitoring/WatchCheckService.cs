@@ -1,6 +1,7 @@
 using WatchThisForMe.Core.Observations;
 using WatchThisForMe.Core.Sources;
 using WatchThisForMe.Core.Watches;
+using WatchThisForMe.Infrastructure.Diffing;
 
 namespace WatchThisForMe.Infrastructure.Monitoring;
 
@@ -38,7 +39,8 @@ public class WatchCheckService(
             CheckedAt = DateTimeOffset.UtcNow,
             ContentHash = snapshot.ContentHash,
             NormalizedContent = snapshot.NormalizedContent,
-            Changed = true
+            Changed = true,
+            DiffSummary = previous is null ? null : TextDiffer.Summarize(previous.NormalizedContent, snapshot.NormalizedContent)
         };
 
         var created = await observationRepository.CreateAsync(observation, cancellationToken);
