@@ -21,6 +21,6 @@ public static partial class VolatileContentNormalizer
         RegexOptions.IgnoreCase)]
     private static partial Regex DateRegex();
 
-    [GeneratedRegex(@"\b[\d,]+\s*(views?|likes?|stars?|comments?|forks?|watchers?|followers?)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b[\d,]+\s*(views?|likes?|stars?|comments?|forks?|watchers?|followers?|points?|upvotes?|votes?|shares?)\b", RegexOptions.IgnoreCase)]
     private static partial Regex CountRegex();
 }

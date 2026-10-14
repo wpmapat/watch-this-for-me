@@ -30,6 +30,14 @@ public class VolatileContentNormalizerTests
     }
 
     [Fact]
+    public void Normalize_ReplacesHackerNewsStylePointCounts()
+    {
+        var result = VolatileContentNormalizer.Normalize("730 points by someuser 2 hours ago");
+
+        Assert.Equal("[COUNT] points by someuser [TIMESTAMP]", result);
+    }
+
+    [Fact]
     public void Normalize_ProducesIdenticalOutputWhenOnlyNoiseDiffers()
     {
         var pageYesterday = "Release notes. Posted 3 hours ago. 102 stars.";
