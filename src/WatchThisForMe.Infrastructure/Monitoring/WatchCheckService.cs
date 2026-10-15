@@ -8,7 +8,8 @@ namespace WatchThisForMe.Infrastructure.Monitoring;
 public class WatchCheckService(
     IWatchRepository watchRepository,
     IObservationRepository observationRepository,
-    ISourceFetcher sourceFetcher)
+    ISourceFetcher sourceFetcher,
+    IChangeClassifier changeClassifier)
 {
     private const int MaxObservationsPerWatch = 10;
 
@@ -42,6 +43,15 @@ public class WatchCheckService(
             Changed = true,
             DiffSummary = previous is null ? null : TextDiffer.Summarize(previous.NormalizedContent, snapshot.NormalizedContent)
         };
+
+        if (!string.IsNullOrEmpty(observation.DiffSummary))
+        {
+            var classification = await changeClassifier.ClassifyAsync(observation.DiffSummary, watch.MeaningfulChangeCriteria, cancellationToken);
+            observation.Meaningful = classification.Meaningful;
+            observation.Category = classification.Category;
+            observation.Confidence = classification.Confidence;
+            observation.ClassificationSummary = classification.Summary;
+        }
 
         var created = await observationRepository.CreateAsync(observation, cancellationToken);
         await PruneOldObservationsAsync(watchId, cancellationToken);
