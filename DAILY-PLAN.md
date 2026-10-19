@@ -18,7 +18,7 @@ last bit into the next session if something runs over.
 - **Active branch:** `master` (no Week 3 branch cut yet)
 - **Last updated:** 2026-10-19
 - **Week 1 status:** Complete and merged to `master` (PR #2)
-- **Week 2 status:** Complete — not yet merged to `master` (PR not yet opened on `feature/week2-semantic-change-detection`)
+- **Week 2 status:** Complete and merged to `master` (PR #3)
 
 ### Done so far
 **Week 1** — GitHub repo, solution scaffold, `Watch` domain model, Cosmos DB storage, Watch CRUD API, web page connector, observation storage + change detection, scheduler, NL→watch via OpenAI, basic Blazor UI. (Full detail in the Week 1 section below.)
