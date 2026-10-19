@@ -14,10 +14,11 @@ last bit into the next session if something runs over.
 
 ## Current Status
 
-- **Active week:** Week 2 — Semantic change detection
-- **Active branch:** `feature/week2-semantic-change-detection`
-- **Last updated:** 2026-10-15
+- **Active week:** Week 3 — Agent + MCP (not yet started)
+- **Active branch:** `master` (no Week 3 branch cut yet)
+- **Last updated:** 2026-10-19
 - **Week 1 status:** Complete and merged to `master` (PR #2)
+- **Week 2 status:** Complete — not yet merged to `master` (PR not yet opened on `feature/week2-semantic-change-detection`)
 
 ### Done so far
 **Week 1** — GitHub repo, solution scaffold, `Watch` domain model, Cosmos DB storage, Watch CRUD API, web page connector, observation storage + change detection, scheduler, NL→watch via OpenAI, basic Blazor UI. (Full detail in the Week 1 section below.)
@@ -27,6 +28,7 @@ last bit into the next session if something runs over.
 - [x] Document snapshot history — `Observation` now stores `NormalizedContent`; repository supports fetching the last N observations and pruning beyond a 10-per-watch cap
 - [x] Basic textual diff — `TextDiffer` (DiffPlex-based) produces a compact +/- line diff between observations, capped in size; stored as `Observation.DiffSummary`, null for the first-ever observation
 - [x] LLM semantic classification — `OpenAiChangeClassifier` judges a diff against the watch's own criteria (meaningful/category/confidence/summary); verified live that the same real-world change gets judged differently depending on each watch's stated criteria
+- [x] Wire pipeline end-to-end — verified against a simulated .NET release notes page (matching the spec's own example): a trivial wording-only change correctly came back `meaningful: false` (category `minor_wording`), and a genuine breaking change + security fix came back `meaningful: true` (category `breaking_change`, confidence 0.9)
 - [ ] Wire pipeline end-to-end *(next up)*
 - [ ] LLM semantic classification *(next up)*
 - [ ] LLM semantic classification
@@ -84,7 +86,7 @@ Goal: tell "page changed" apart from "something important changed."
 | Oct 13 | Tue | 3h | Document snapshot history | [x] |
 | Oct 14 | Wed | 3h | Basic textual diff | [x] |
 | Oct 15 | Thu | 3h | LLM semantic classification | [x] |
-| Oct 16 | Fri | 3h | Wire pipeline end-to-end | [ ] |
+| Oct 16 | Fri | 3h | Wire pipeline end-to-end | [x] |
 
 **Mon Oct 12 — Content normalization.** Make the "did it change" signal
 less noisy before AI even gets involved.
