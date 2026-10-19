@@ -1,14 +1,18 @@
 using WatchThisForMe.Core.Observations;
 using WatchThisForMe.Core.Sources;
 using WatchThisForMe.Core.Watches;
+using WatchThisForMe.Infrastructure.Diffing;
 
 namespace WatchThisForMe.Infrastructure.Monitoring;
 
 public class WatchCheckService(
     IWatchRepository watchRepository,
     IObservationRepository observationRepository,
-    ISourceFetcher sourceFetcher)
+    ISourceFetcher sourceFetcher,
+    IChangeClassifier changeClassifier)
 {
+    private const int MaxObservationsPerWatch = 10;
+
     public async Task<Observation?> CheckAsync(string watchId, CancellationToken cancellationToken = default)
     {
         var watch = await watchRepository.GetAsync(watchId, cancellationToken);
@@ -35,9 +39,33 @@ public class WatchCheckService(
             WatchId = watchId,
             CheckedAt = DateTimeOffset.UtcNow,
             ContentHash = snapshot.ContentHash,
-            Changed = true
+            NormalizedContent = snapshot.NormalizedContent,
+            Changed = true,
+            DiffSummary = previous is null ? null : TextDiffer.Summarize(previous.NormalizedContent, snapshot.NormalizedContent)
         };
 
-        return await observationRepository.CreateAsync(observation, cancellationToken);
+        if (!string.IsNullOrEmpty(observation.DiffSummary))
+        {
+            var classification = await changeClassifier.ClassifyAsync(observation.DiffSummary, watch.MeaningfulChangeCriteria, cancellationToken);
+            observation.Meaningful = classification.Meaningful;
+            observation.Category = classification.Category;
+            observation.Confidence = classification.Confidence;
+            observation.ClassificationSummary = classification.Summary;
+        }
+
+        var created = await observationRepository.CreateAsync(observation, cancellationToken);
+        await PruneOldObservationsAsync(watchId, cancellationToken);
+
+        return created;
+    }
+
+    private async Task PruneOldObservationsAsync(string watchId, CancellationToken cancellationToken)
+    {
+        var all = await observationRepository.ListAsync(watchId, cancellationToken: cancellationToken);
+
+        foreach (var stale in all.Skip(MaxObservationsPerWatch))
+        {
+            await observationRepository.DeleteAsync(stale.Id, watchId, cancellationToken);
+        }
     }
 }

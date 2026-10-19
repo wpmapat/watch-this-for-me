@@ -6,5 +6,7 @@ public interface IObservationRepository
 
     Task<Observation?> GetLatestAsync(string watchId, CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<Observation>> ListAsync(string watchId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Observation>> ListAsync(string watchId, int? maxCount = null, CancellationToken cancellationToken = default);
+
+    Task DeleteAsync(string id, string watchId, CancellationToken cancellationToken = default);
 }

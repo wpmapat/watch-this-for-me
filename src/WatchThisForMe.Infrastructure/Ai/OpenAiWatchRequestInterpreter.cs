@@ -1,10 +1,9 @@
-using System.Net.Http.Json;
 using System.Text.Json;
 using WatchThisForMe.Core.Watches;
 
 namespace WatchThisForMe.Infrastructure.Ai;
 
-public class OpenAiWatchRequestInterpreter(HttpClient httpClient, OpenAiOptions options) : IWatchRequestInterpreter
+public class OpenAiWatchRequestInterpreter(OpenAiResponsesClient client) : IWatchRequestInterpreter
 {
     private const string Instructions =
         "Convert the user's natural-language monitoring request into a structured watch configuration. "
@@ -28,41 +27,11 @@ public class OpenAiWatchRequestInterpreter(HttpClient httpClient, OpenAiOptions 
           "required": ["name", "source", "sourceType", "checkFrequencyMinutes", "meaningfulChangeCriteria", "investigationInstructions", "notificationPolicy", "notificationChannel"],
           "additionalProperties": false
         }
-        """).RootElement;
+        """).RootElement.Clone();
 
     public async Task<WatchDraft> InterpretAsync(string request, CancellationToken cancellationToken = default)
     {
-        var requestBody = new
-        {
-            model = options.Model,
-            instructions = Instructions,
-            input = request,
-            text = new
-            {
-                format = new
-                {
-                    type = "json_schema",
-                    name = "watch_draft",
-                    schema = Schema,
-                    strict = true
-                }
-            }
-        };
-
-        using var httpResponse = await httpClient.PostAsJsonAsync("v1/responses", requestBody, cancellationToken);
-        httpResponse.EnsureSuccessStatusCode();
-
-        using var responseDocument = await JsonDocument.ParseAsync(
-            await httpResponse.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
-
-        var outputText = responseDocument.RootElement
-            .GetProperty("output")[0]
-            .GetProperty("content")[0]
-            .GetProperty("text")
-            .GetString()!;
-
-        using var draftDocument = JsonDocument.Parse(outputText);
-        var root = draftDocument.RootElement;
+        var root = await client.CreateStructuredResponseAsync(Instructions, request, "watch_draft", Schema, cancellationToken);
         var investigationInstructions = root.GetProperty("investigationInstructions");
 
         return new WatchDraft(
