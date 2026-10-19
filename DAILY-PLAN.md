@@ -14,8 +14,8 @@ last bit into the next session if something runs over.
 
 ## Current Status
 
-- **Active week:** Week 3 — Agent + MCP (not yet started)
-- **Active branch:** `master` (no Week 3 branch cut yet)
+- **Active week:** Week 3 — Agent + MCP
+- **Active branch:** `feature/week3-agent-mcp`
 - **Last updated:** 2026-10-19
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 - **Week 2 status:** Complete and merged to `master` (PR #3)
@@ -23,12 +23,11 @@ last bit into the next session if something runs over.
 ### Done so far
 **Week 1** — GitHub repo, solution scaffold, `Watch` domain model, Cosmos DB storage, Watch CRUD API, web page connector, observation storage + change detection, scheduler, NL→watch via OpenAI, basic Blazor UI. (Full detail in the Week 1 section below.)
 
-**Week 2**
-- [x] Content normalization — `VolatileContentNormalizer` replaces timestamps/dates/counters with stable placeholders before hashing, so noise doesn't register as a "change" (later extended to cover "points" after a live test against Hacker News caught the gap)
-- [x] Document snapshot history — `Observation` now stores `NormalizedContent`; repository supports fetching the last N observations and pruning beyond a 10-per-watch cap
-- [x] Basic textual diff — `TextDiffer` (DiffPlex-based) produces a compact +/- line diff between observations, capped in size; stored as `Observation.DiffSummary`, null for the first-ever observation
-- [x] LLM semantic classification — `OpenAiChangeClassifier` judges a diff against the watch's own criteria (meaningful/category/confidence/summary); verified live that the same real-world change gets judged differently depending on each watch's stated criteria
-- [x] Wire pipeline end-to-end — verified against a simulated .NET release notes page (matching the spec's own example): a trivial wording-only change correctly came back `meaningful: false` (category `minor_wording`), and a genuine breaking change + security fix came back `meaningful: true` (category `breaking_change`, confidence 0.9)
+**Week 2** — Content normalization, document snapshot history, basic textual diff, LLM semantic classification, full pipeline wired end-to-end and verified against a simulated .NET release notes scenario (trivial wording change → not meaningful; breaking change + security fix → meaningful). (Full detail in the Week 2 section below.)
+
+**Week 3**
+- [x] MCP server: initial tools — `WatchThisForMe.McpServer` exposes `get_web_page`, `get_previous_observation`, `save_observation` over stdio, wrapping existing `ISourceFetcher`/`IObservationRepository` code. Verified with a real MCP client test that spawns the server as a subprocess, lists its tools, and calls them against the live emulator.
+- [ ] GitHub connector as MCP tools *(next up)*
 - [ ] Wire pipeline end-to-end *(next up)*
 - [ ] LLM semantic classification *(next up)*
 - [ ] LLM semantic classification
@@ -118,7 +117,7 @@ Goal: turn the system into a genuine multi-step agent. Most important week for t
 
 | Date | Day | Hrs | Focus | Status |
 |---|---|---|---|---|
-| Oct 19 | Mon | 2h | MCP server: initial tools | [ ] |
+| Oct 19 | Mon | 2h | MCP server: initial tools | [x] |
 | Oct 20 | Tue | 3h | GitHub connector as MCP tools | [ ] |
 | Oct 21 | Wed | 3h | Agent investigation loop | [ ] |
 | Oct 22 | Thu | 3h | Grounded notification generation | [ ] |
