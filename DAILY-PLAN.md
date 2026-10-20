@@ -16,7 +16,7 @@ last bit into the next session if something runs over.
 
 - **Active week:** Week 3 — Agent + MCP
 - **Active branch:** `feature/week3-agent-mcp`
-- **Last updated:** 2026-10-19
+- **Last updated:** 2026-10-20
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 - **Week 2 status:** Complete and merged to `master` (PR #3)
 
@@ -27,6 +27,8 @@ last bit into the next session if something runs over.
 
 **Week 3**
 - [x] MCP server: initial tools — `WatchThisForMe.McpServer` exposes `get_web_page`, `get_previous_observation`, `save_observation` over stdio, wrapping existing `ISourceFetcher`/`IObservationRepository` code. Verified with a real MCP client test that spawns the server as a subprocess, lists its tools, and calls them against the live emulator.
+- [x] GitHub connector as MCP tools — `GitHubClient` wraps GitHub's REST API; `get_github_release`/`get_github_issues` exposed alongside the existing tools. Verified against the real GitHub API (dotnet/runtime).
+- [ ] Agent investigation loop *(next up)*
 - [ ] GitHub connector as MCP tools *(next up)*
 - [ ] Wire pipeline end-to-end *(next up)*
 - [ ] LLM semantic classification *(next up)*
@@ -118,7 +120,7 @@ Goal: turn the system into a genuine multi-step agent. Most important week for t
 | Date | Day | Hrs | Focus | Status |
 |---|---|---|---|---|
 | Oct 19 | Mon | 2h | MCP server: initial tools | [x] |
-| Oct 20 | Tue | 3h | GitHub connector as MCP tools | [ ] |
+| Oct 20 | Tue | 3h | GitHub connector as MCP tools | [x] |
 | Oct 21 | Wed | 3h | Agent investigation loop | [ ] |
 | Oct 22 | Thu | 3h | Grounded notification generation | [ ] |
 | Oct 23 | Fri | 3h | End-to-end agentic demo test | [ ] |
