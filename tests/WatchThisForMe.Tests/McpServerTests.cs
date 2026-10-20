@@ -53,6 +53,8 @@ public class McpServerTests
         Assert.Contains("get_web_page", toolNames);
         Assert.Contains("get_previous_observation", toolNames);
         Assert.Contains("save_observation", toolNames);
+        Assert.Contains("get_github_release", toolNames);
+        Assert.Contains("get_github_issues", toolNames);
     }
 
     [Fact]
@@ -95,5 +97,32 @@ public class McpServerTests
             // No delete tool yet - this leaves one throwaway observation in the emulator,
             // which is harmless and will be pruned by the normal 10-per-watch cap over time.
         }
+    }
+
+    [Fact]
+    public async Task GetGithubRelease_ReturnsLatestReleaseInfo()
+    {
+        var client = await ConnectAsync();
+
+        var result = await client.CallToolAsync(
+            "get_github_release",
+            new Dictionary<string, object?> { ["owner"] = "dotnet", ["repo"] = "runtime" });
+
+        var text = result.Content.OfType<TextContentBlock>().First().Text;
+        Assert.Contains("Tag:", text);
+        Assert.Contains("github.com/dotnet/runtime", text);
+    }
+
+    [Fact]
+    public async Task GetGithubIssues_ReturnsIssueList()
+    {
+        var client = await ConnectAsync();
+
+        var result = await client.CallToolAsync(
+            "get_github_issues",
+            new Dictionary<string, object?> { ["owner"] = "dotnet", ["repo"] = "runtime", ["state"] = "open" });
+
+        var text = result.Content.OfType<TextContentBlock>().First().Text;
+        Assert.Contains("github.com/dotnet/runtime/issues", text);
     }
 }

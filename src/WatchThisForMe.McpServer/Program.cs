@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WatchThisForMe.Infrastructure.Cosmos;
+using WatchThisForMe.Infrastructure.GitHub;
 using WatchThisForMe.Infrastructure.Sources;
 using WatchThisForMe.McpServer.Tools;
 
@@ -16,12 +17,14 @@ builder.Logging.AddConsole(options =>
 
 builder.Services.AddCosmosDb(builder.Configuration);
 builder.Services.AddSourceFetchers();
+builder.Services.AddGitHub(builder.Configuration);
 
 builder.Services
     .AddMcpServer()
     .WithStdioServerTransport()
     .WithTools<SourceTools>()
-    .WithTools<ObservationTools>();
+    .WithTools<ObservationTools>()
+    .WithTools<GitHubTools>();
 
 var host = builder.Build();
 
