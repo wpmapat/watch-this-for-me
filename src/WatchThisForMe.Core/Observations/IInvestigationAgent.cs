@@ -2,7 +2,7 @@ namespace WatchThisForMe.Core.Observations;
 
 public interface IInvestigationAgent
 {
-    Task<ChangeClassification> InvestigateAsync(
+    Task<InvestigationResult> InvestigateAsync(
         string watchId,
         string diffSummary,
         string meaningfulChangeCriteria,

@@ -102,7 +102,7 @@ public class WatchesController(
     }
 
     [HttpPost("{id}/investigate")]
-    public async Task<ActionResult<ChangeClassification>> Investigate(string id, CancellationToken cancellationToken)
+    public async Task<ActionResult<InvestigationResult>> Investigate(string id, CancellationToken cancellationToken)
     {
         var watch = await repository.GetAsync(id, cancellationToken);
         if (watch is null)

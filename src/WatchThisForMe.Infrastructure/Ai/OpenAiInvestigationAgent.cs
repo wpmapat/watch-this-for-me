@@ -37,12 +37,33 @@ public class OpenAiInvestigationAgent(HttpClient httpClient, OpenAiOptions optio
         }
         """).RootElement.Clone();
 
+    // evidenceIndices forces the model to point at specific entries in the evidence list we
+    // supply, rather than writing free-text "evidence" it could invent - the notification's
+    // evidence always ends up being our own captured tool output, never a model paraphrase.
+    private static readonly JsonElement NotificationSchema = JsonDocument.Parse("""
+        {
+          "type": "object",
+          "properties": {
+            "whatChanged": { "type": "string" },
+            "whyItMatters": { "type": "string" },
+            "confidence": { "type": "number" },
+            "evidenceIndices": { "type": "array", "items": { "type": "integer" } }
+          },
+          "required": ["whatChanged", "whyItMatters", "confidence", "evidenceIndices"],
+          "additionalProperties": false
+        }
+        """).RootElement.Clone();
+
     private readonly SemaphoreSlim _connectLock = new(1, 1);
     private McpClient? _mcpClient;
 
-    public async Task<ChangeClassification> InvestigateAsync(
+    public async Task<InvestigationResult> InvestigateAsync(
         string watchId, string diffSummary, string meaningfulChangeCriteria, CancellationToken cancellationToken = default)
     {
+        // Seeded with the diff itself - even if the agent calls no tools at all, the
+        // notification still has at least one real source to ground its claims in.
+        var evidence = new List<EvidenceItem> { new("diff", diffSummary) };
+
         var mcpClient = await GetMcpClientAsync(cancellationToken);
         var allTools = await mcpClient.ListToolsAsync(cancellationToken: cancellationToken);
 
@@ -112,25 +133,36 @@ public class OpenAiInvestigationAgent(HttpClient httpClient, OpenAiOptions optio
                 using var resultDocument = JsonDocument.Parse(text);
                 var result = resultDocument.RootElement;
 
-                return new ChangeClassification(
+                var classification = new ChangeClassification(
                     Meaningful: result.GetProperty("meaningful").GetBoolean(),
                     Category: result.GetProperty("category").GetString()!,
                     Confidence: result.GetProperty("confidence").GetDouble(),
                     Summary: result.GetProperty("summary").GetString()!);
+
+                // Only worth writing a user-facing notification for changes we've judged meaningful -
+                // generating one for everything else would just be wasted model calls.
+                var notification = classification.Meaningful
+                    ? await GenerateNotificationAsync(previousResponseId, evidence, cancellationToken)
+                    : null;
+
+                return new InvestigationResult(classification, notification);
             }
 
             var functionOutputs = new List<object>();
             foreach (var call in functionCalls)
             {
                 toolCallCount++;
-                functionOutputs.Add(await ExecuteToolCallAsync(mcpClient, call, watchId, cancellationToken));
+                var (functionOutput, evidenceItem) = await ExecuteToolCallAsync(mcpClient, call, watchId, cancellationToken);
+                functionOutputs.Add(functionOutput);
+                evidence.Add(evidenceItem);
             }
 
             requestInput = functionOutputs;
         }
     }
 
-    private async Task<object> ExecuteToolCallAsync(McpClient mcpClient, JsonElement call, string watchId, CancellationToken cancellationToken)
+    private async Task<(object FunctionOutput, EvidenceItem Evidence)> ExecuteToolCallAsync(
+        McpClient mcpClient, JsonElement call, string watchId, CancellationToken cancellationToken)
     {
         var callId = call.GetProperty("call_id").GetString()!;
         var toolName = call.GetProperty("name").GetString()!;
@@ -152,7 +184,58 @@ public class OpenAiInvestigationAgent(HttpClient httpClient, OpenAiOptions optio
             resultText = $"Tool call failed: {ex.Message}";
         }
 
-        return new { type = "function_call_output", call_id = callId, output = resultText };
+        var functionOutput = new { type = "function_call_output", call_id = callId, output = resultText };
+        return (functionOutput, new EvidenceItem(toolName, resultText));
+    }
+
+    private async Task<Notification> GenerateNotificationAsync(
+        string? previousResponseId, List<EvidenceItem> evidence, CancellationToken cancellationToken)
+    {
+        var evidenceList = string.Join("\n\n", evidence.Select((e, i) => $"[{i}] ({e.Source}):\n{e.Detail}"));
+
+        var requestBody = new Dictionary<string, object?>
+        {
+            ["model"] = options.Model,
+            ["previous_response_id"] = previousResponseId,
+            ["input"] = $"""
+                You judged this change as meaningful. Now write the notification the user will
+                actually see. You may only rely on the evidence listed below - cite every index
+                you actually relied on in evidenceIndices, and don't claim anything the evidence
+                doesn't support.
+
+                Evidence gathered during this investigation:
+                {evidenceList}
+                """,
+            ["text"] = new
+            {
+                format = new { type = "json_schema", name = "notification", schema = NotificationSchema, strict = true }
+            }
+        };
+
+        using var httpResponse = await httpClient.PostAsJsonAsync("v1/responses", requestBody, cancellationToken);
+        httpResponse.EnsureSuccessStatusCode();
+
+        using var responseDocument = await JsonDocument.ParseAsync(
+            await httpResponse.Content.ReadAsStreamAsync(cancellationToken), cancellationToken: cancellationToken);
+
+        var message = responseDocument.RootElement.GetProperty("output").EnumerateArray()
+            .First(item => item.GetProperty("type").GetString() == "message");
+        var text = message.GetProperty("content")[0].GetProperty("text").GetString()!;
+
+        using var resultDocument = JsonDocument.Parse(text);
+        var result = resultDocument.RootElement;
+
+        var citedEvidence = result.GetProperty("evidenceIndices").EnumerateArray()
+            .Select(i => i.GetInt32())
+            .Where(i => i >= 0 && i < evidence.Count)
+            .Select(i => evidence[i])
+            .ToList();
+
+        return new Notification(
+            WhatChanged: result.GetProperty("whatChanged").GetString()!,
+            WhyItMatters: result.GetProperty("whyItMatters").GetString()!,
+            Confidence: result.GetProperty("confidence").GetDouble(),
+            Evidence: citedEvidence);
     }
 
     private async Task<McpClient> GetMcpClientAsync(CancellationToken cancellationToken)
