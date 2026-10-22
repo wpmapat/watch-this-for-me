@@ -16,7 +16,7 @@ last bit into the next session if something runs over.
 
 - **Active week:** Week 3 — Agent + MCP
 - **Active branch:** `feature/week3-agent-mcp`
-- **Last updated:** 2026-10-21
+- **Last updated:** 2026-10-22
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 - **Week 2 status:** Complete and merged to `master` (PR #3)
 
@@ -29,11 +29,8 @@ last bit into the next session if something runs over.
 - [x] MCP server: initial tools — `WatchThisForMe.McpServer` exposes `get_web_page`, `get_previous_observation`, `save_observation` over stdio, wrapping existing `ISourceFetcher`/`IObservationRepository` code. Verified with a real MCP client test that spawns the server as a subprocess, lists its tools, and calls them against the live emulator.
 - [x] GitHub connector as MCP tools — `GitHubClient` wraps GitHub's REST API; `get_github_release`/`get_github_issues` exposed alongside the existing tools. Verified against the real GitHub API (dotnet/runtime).
 - [x] Agent investigation loop — `OpenAiInvestigationAgent` runs a real tool-calling loop against OpenAI's Responses API, connected to our own MCP server as a client, capped at 5 tool calls. Exposed via `POST /api/watches/{id}/investigate`, kept separate from the fast automatic pipeline. Verified live: the agent chose on its own to call `get_previous_observation` then `get_github_issues` (real dotnet/runtime data) before answering.
-- [ ] Grounded notification generation *(next up)*
-- [ ] Wire pipeline end-to-end *(next up)*
-- [ ] LLM semantic classification *(next up)*
-- [ ] LLM semantic classification
-- [ ] Wire pipeline end-to-end
+- [x] Grounded notification generation — after a meaningful classification, a second OpenAI call produces a `Notification` (what changed / why it matters / confidence / evidence). The model cites evidence only by index into the real list of facts gathered (the diff + every tool result), so cited evidence always resolves to genuine captured data, never invented text. Verified live: the agent cited only the evidence it actually relied on, not everything it had touched.
+- [ ] End-to-end agentic demo test *(next up)*
 
 ---
 
@@ -122,7 +119,7 @@ Goal: turn the system into a genuine multi-step agent. Most important week for t
 | Oct 19 | Mon | 2h | MCP server: initial tools | [x] |
 | Oct 20 | Tue | 3h | GitHub connector as MCP tools | [x] |
 | Oct 21 | Wed | 3h | Agent investigation loop | [x] |
-| Oct 22 | Thu | 3h | Grounded notification generation | [ ] |
+| Oct 22 | Thu | 3h | Grounded notification generation | [x] |
 | Oct 23 | Fri | 3h | End-to-end agentic demo test | [ ] |
 
 **Mon Oct 19 — MCP server: initial tools.** Stand up your own MCP
