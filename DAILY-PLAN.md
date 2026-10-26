@@ -14,23 +14,19 @@ last bit into the next session if something runs over.
 
 ## Current Status
 
-- **Active week:** Week 3 — Agent + MCP (complete, not yet merged)
-- **Active branch:** `feature/week3-agent-mcp`
+- **Active week:** Week 4 — RAG + production workflow (not yet started)
+- **Active branch:** `master` (no Week 4 branch cut yet)
 - **Last updated:** 2026-10-26
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 - **Week 2 status:** Complete and merged to `master` (PR #3)
+- **Week 3 status:** Complete and merged to `master` (PR #4)
 
 ### Done so far
 **Week 1** — GitHub repo, solution scaffold, `Watch` domain model, Cosmos DB storage, Watch CRUD API, web page connector, observation storage + change detection, scheduler, NL→watch via OpenAI, basic Blazor UI. (Full detail in the Week 1 section below.)
 
 **Week 2** — Content normalization, document snapshot history, basic textual diff, LLM semantic classification, full pipeline wired end-to-end and verified against a simulated .NET release notes scenario (trivial wording change → not meaningful; breaking change + security fix → meaningful). (Full detail in the Week 2 section below.)
 
-**Week 3**
-- [x] MCP server: initial tools — `WatchThisForMe.McpServer` exposes `get_web_page`, `get_previous_observation`, `save_observation` over stdio, wrapping existing `ISourceFetcher`/`IObservationRepository` code. Verified with a real MCP client test that spawns the server as a subprocess, lists its tools, and calls them against the live emulator.
-- [x] GitHub connector as MCP tools — `GitHubClient` wraps GitHub's REST API; `get_github_release`/`get_github_issues` exposed alongside the existing tools. Verified against the real GitHub API (dotnet/runtime).
-- [x] Agent investigation loop — `OpenAiInvestigationAgent` runs a real tool-calling loop against OpenAI's Responses API, connected to our own MCP server as a client, capped at 5 tool calls. Exposed via `POST /api/watches/{id}/investigate`, kept separate from the fast automatic pipeline. Verified live: the agent chose on its own to call `get_previous_observation` then `get_github_issues` (real dotnet/runtime data) before answering.
-- [x] Grounded notification generation — after a meaningful classification, a second OpenAI call produces a `Notification` (what changed / why it matters / confidence / evidence). The model cites evidence only by index into the real list of facts gathered (the diff + every tool result), so cited evidence always resolves to genuine captured data, never invented text. Verified live: the agent cited only the evidence it actually relied on, not everything it had touched.
-- [x] End-to-end agentic demo test — ran the real pipeline (diff → classify → investigate → notify) against the real `dotnet/core` watch: a genuine Oct 13 Cosmos snapshot diffed against today's live GitHub page, real OpenAI classification (meaningful, `new_release`), and the investigation loop making a real tool call against real Cosmos data before producing a grounded notification. Found and fixed a real rough edge along the way: a stale observation row with a null `NormalizedContent` was crashing `TextDiffer` - now treated as "nothing to diff against" instead of throwing.
+**Week 3** — Own MCP server (`get_web_page`, `get_previous_observation`, `save_observation`) plus GitHub tools (`get_github_release`, `get_github_issues`); an agent investigation loop that decides on its own which tools to call (capped at 5); grounded notification generation that can only cite evidence actually gathered during investigation; proved end-to-end against a real GitHub repo watch, fixing a real null-reference bug along the way. (Full detail in the Week 3 section below.)
 
 ---
 
