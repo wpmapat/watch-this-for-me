@@ -9,7 +9,8 @@ public class WatchCheckService(
     IWatchRepository watchRepository,
     IObservationRepository observationRepository,
     ISourceFetcher sourceFetcher,
-    IChangeClassifier changeClassifier)
+    IChangeClassifier changeClassifier,
+    IEmbeddingGenerator embeddingGenerator)
 {
     private const int MaxObservationsPerWatch = 10;
 
@@ -55,6 +56,10 @@ public class WatchCheckService(
             observation.Category = classification.Category;
             observation.Confidence = classification.Confidence;
             observation.ClassificationSummary = classification.Summary;
+
+            // Embed the summary, not the raw diff - it's the compact, semantic statement of
+            // what happened, which is what tomorrow's similarity search should match against.
+            observation.Embedding = await embeddingGenerator.GenerateAsync(classification.Summary, cancellationToken);
         }
 
         var created = await observationRepository.CreateAsync(observation, cancellationToken);

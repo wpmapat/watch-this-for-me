@@ -31,6 +31,12 @@ public static class AiServiceCollectionExtensions
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
         });
 
+        services.AddHttpClient<IEmbeddingGenerator, OpenAiEmbeddingGenerator>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.openai.com/");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
+        });
+
         services.AddSingleton<IWatchRequestInterpreter, OpenAiWatchRequestInterpreter>();
         services.AddSingleton<IChangeClassifier, OpenAiChangeClassifier>();
         services.AddSingleton<IInvestigationAgent>(sp =>
