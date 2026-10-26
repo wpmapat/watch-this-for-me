@@ -12,7 +12,8 @@ public class WatchesController(
     IWatchRepository repository,
     IObservationRepository observationRepository,
     WatchCheckService checkService,
-    IWatchRequestInterpreter requestInterpreter) : ControllerBase
+    IWatchRequestInterpreter requestInterpreter,
+    IInvestigationAgent investigationAgent) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<Watch>> Create(CreateWatchRequest request, CancellationToken cancellationToken)
@@ -98,6 +99,25 @@ public class WatchesController(
     {
         var observations = await observationRepository.ListAsync(id, count, cancellationToken);
         return Ok(observations);
+    }
+
+    [HttpPost("{id}/investigate")]
+    public async Task<ActionResult<InvestigationResult>> Investigate(string id, CancellationToken cancellationToken)
+    {
+        var watch = await repository.GetAsync(id, cancellationToken);
+        if (watch is null)
+        {
+            return NotFound();
+        }
+
+        var latest = await observationRepository.GetLatestAsync(id, cancellationToken);
+        if (latest?.DiffSummary is null)
+        {
+            return BadRequest("No diff available to investigate yet - check this watch at least twice first.");
+        }
+
+        var result = await investigationAgent.InvestigateAsync(id, latest.DiffSummary, watch.MeaningfulChangeCriteria, cancellationToken);
+        return Ok(result);
     }
 
     [HttpPost("from-natural-language")]
