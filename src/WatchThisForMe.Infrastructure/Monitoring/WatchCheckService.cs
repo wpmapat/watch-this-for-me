@@ -41,7 +41,11 @@ public class WatchCheckService(
             ContentHash = snapshot.ContentHash,
             NormalizedContent = snapshot.NormalizedContent,
             Changed = true,
-            DiffSummary = previous is null ? null : TextDiffer.Summarize(previous.NormalizedContent, snapshot.NormalizedContent)
+            // previous.NormalizedContent can be null for an old/corrupted observation row even
+            // though the model declares it non-nullable - `required` only checked at write time.
+            DiffSummary = string.IsNullOrEmpty(previous?.NormalizedContent)
+                ? null
+                : TextDiffer.Summarize(previous.NormalizedContent, snapshot.NormalizedContent)
         };
 
         if (!string.IsNullOrEmpty(observation.DiffSummary))
