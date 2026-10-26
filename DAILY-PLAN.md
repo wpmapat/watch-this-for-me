@@ -14,8 +14,8 @@ last bit into the next session if something runs over.
 
 ## Current Status
 
-- **Active week:** Week 4 — RAG + production workflow (not yet started)
-- **Active branch:** `master` (no Week 4 branch cut yet)
+- **Active week:** Week 4 — RAG + production workflow
+- **Active branch:** `feature/week4-rag-production`
 - **Last updated:** 2026-10-26
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 - **Week 2 status:** Complete and merged to `master` (PR #3)
@@ -27,6 +27,9 @@ last bit into the next session if something runs over.
 **Week 2** — Content normalization, document snapshot history, basic textual diff, LLM semantic classification, full pipeline wired end-to-end and verified against a simulated .NET release notes scenario (trivial wording change → not meaningful; breaking change + security fix → meaningful). (Full detail in the Week 2 section below.)
 
 **Week 3** — Own MCP server (`get_web_page`, `get_previous_observation`, `save_observation`) plus GitHub tools (`get_github_release`, `get_github_issues`); an agent investigation loop that decides on its own which tools to call (capped at 5); grounded notification generation that can only cite evidence actually gathered during investigation; proved end-to-end against a real GitHub repo watch, fixing a real null-reference bug along the way. (Full detail in the Week 3 section below.)
+
+**Week 4**
+- [x] Vector store + embeddings — each observation's classification summary gets embedded (OpenAI `text-embedding-3-small`) and stored directly on the `Observation` in Cosmos. Went with a simple local/in-process store rather than Azure AI Search: the search space is bounded (at most 10 observations per watch, our existing pruning cap), so brute-force comparison is the right-sized choice, and nothing later in the plan needs a dedicated search service. Verified live through the real `WatchCheckService.CheckAsync`: a real diff produced a real classification and a real 1536-dimension embedding. Caught and fixed a real DI bug along the way (a double registration was injecting an unconfigured `HttpClient`).
 
 ---
 
@@ -148,7 +151,7 @@ Goal: give the agent memory and make it production-sturdy.
 
 | Date | Day | Hrs | Focus | Status |
 |---|---|---|---|---|
-| Oct 26 | Mon | 2h | Vector store + embeddings | [ ] |
+| Oct 26 | Mon | 2h | Vector store + embeddings | [x] |
 | Oct 27 | Tue | 3h | RAG retrieval | [ ] |
 | Oct 28 | Wed | 3h | User interest profile | [ ] |
 | Oct 29 | Thu | 3h | Retries, timeouts, idempotency | [ ] |
