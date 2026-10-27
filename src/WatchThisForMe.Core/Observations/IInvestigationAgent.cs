@@ -6,5 +6,6 @@ public interface IInvestigationAgent
         string watchId,
         string diffSummary,
         string meaningfulChangeCriteria,
+        IReadOnlyList<SimilarObservation> similarPastObservations,
         CancellationToken cancellationToken = default);
 }

@@ -2,6 +2,7 @@ using WatchThisForMe.Core.Observations;
 using WatchThisForMe.Core.Sources;
 using WatchThisForMe.Core.Watches;
 using WatchThisForMe.Infrastructure.Diffing;
+using WatchThisForMe.Infrastructure.Embeddings;
 
 namespace WatchThisForMe.Infrastructure.Monitoring;
 
@@ -13,6 +14,7 @@ public class WatchCheckService(
     IEmbeddingGenerator embeddingGenerator)
 {
     private const int MaxObservationsPerWatch = 10;
+    private const int MaxSimilarPastMatches = 3;
 
     public async Task<Observation?> CheckAsync(string watchId, CancellationToken cancellationToken = default)
     {
@@ -51,7 +53,14 @@ public class WatchCheckService(
 
         if (!string.IsNullOrEmpty(observation.DiffSummary))
         {
-            var classification = await changeClassifier.ClassifyAsync(observation.DiffSummary, watch.MeaningfulChangeCriteria, cancellationToken);
+            // Query embedding is of the raw diff, not a classification summary - we don't have
+            // this change's own summary yet, that's the whole point of asking "have I seen
+            // something like this before" ahead of classifying it.
+            var queryEmbedding = await embeddingGenerator.GenerateAsync(observation.DiffSummary, cancellationToken);
+            var history = await observationRepository.ListAsync(watchId, MaxObservationsPerWatch, cancellationToken);
+            var similarPast = EmbeddingSimilarity.FindTopMatches(queryEmbedding, history, MaxSimilarPastMatches);
+
+            var classification = await changeClassifier.ClassifyAsync(observation.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, cancellationToken);
             observation.Meaningful = classification.Meaningful;
             observation.Category = classification.Category;
             observation.Confidence = classification.Confidence;

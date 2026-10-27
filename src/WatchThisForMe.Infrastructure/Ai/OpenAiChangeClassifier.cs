@@ -12,7 +12,10 @@ public class OpenAiChangeClassifier(OpenAiResponsesClient client) : IChangeClass
         + "unrelated to the user's stated criteria. Judge strictly against the user's criteria, not just "
         + "whether anything changed. Pick a short category label (e.g. breaking_change, security_fix, "
         + "pricing_change, minor_wording, unrelated). Confidence is 0-1. Summary is one sentence explaining "
-        + "what changed and why it does or doesn't matter.";
+        + "what changed and why it does or doesn't matter. You may be shown similar past changes on this same "
+        + "watch and how they were judged - use them to stay consistent (e.g. don't call this one meaningful "
+        + "if a near-identical past change was judged not meaningful, and vice versa), but still judge this "
+        + "diff on its own merits against the user's criteria rather than copying a past verdict blindly.";
 
     private static readonly JsonElement Schema = JsonDocument.Parse("""
         {
@@ -31,9 +34,23 @@ public class OpenAiChangeClassifier(OpenAiResponsesClient client) : IChangeClass
     public async Task<ChangeClassification> ClassifyAsync(
         string diffSummary,
         string meaningfulChangeCriteria,
+        IReadOnlyList<SimilarObservation> similarPastObservations,
         CancellationToken cancellationToken = default)
     {
-        var input = $"User's meaningful-change criteria: {meaningfulChangeCriteria}\n\nDiff of what changed:\n{diffSummary}";
+        var pastContext = similarPastObservations.Count == 0
+            ? "None."
+            : string.Join("\n", similarPastObservations.Select(s =>
+                $"- {s.CheckedAt:u} (judged meaningful: {s.Meaningful}, category: {s.Category}): {s.Summary}"));
+
+        var input = $"""
+            User's meaningful-change criteria: {meaningfulChangeCriteria}
+
+            Similar past changes on this watch:
+            {pastContext}
+
+            Diff of what changed:
+            {diffSummary}
+            """;
 
         var root = await client.CreateStructuredResponseAsync(Instructions, input, "change_classification", Schema, cancellationToken);
 

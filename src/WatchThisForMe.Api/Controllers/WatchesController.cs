@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using WatchThisForMe.Api.Contracts;
 using WatchThisForMe.Core.Observations;
 using WatchThisForMe.Core.Watches;
+using WatchThisForMe.Infrastructure.Embeddings;
 using WatchThisForMe.Infrastructure.Monitoring;
 
 namespace WatchThisForMe.Api.Controllers;
@@ -116,7 +117,14 @@ public class WatchesController(
             return BadRequest("No diff available to investigate yet - check this watch at least twice first.");
         }
 
-        var result = await investigationAgent.InvestigateAsync(id, latest.DiffSummary, watch.MeaningfulChangeCriteria, cancellationToken);
+        // Reuse latest.Embedding (already computed from its own classification summary during
+        // the check) as the query - no need to call the embedding API again here.
+        var history = await observationRepository.ListAsync(id, maxCount: 10, cancellationToken);
+        var similarPast = latest.Embedding is { } embedding
+            ? EmbeddingSimilarity.FindTopMatches(embedding, history.Where(o => o.Id != latest.Id), topN: 3)
+            : [];
+
+        var result = await investigationAgent.InvestigateAsync(id, latest.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, cancellationToken);
         return Ok(result);
     }
 
