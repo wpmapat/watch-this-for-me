@@ -76,6 +76,17 @@ notification has to point back to something the system genuinely gathered
 (the real diff, a real tool call result, or a real similar past judgment) —
 the AI is not allowed to just assert things and call them evidence.
 
+**User interest profile (added Week 4)** — separate from each watch's own
+criteria, there's a single free-text profile of what you broadly care about
+(e.g. "C#, .NET, Azure, AI tooling — not mobile or frontend JavaScript").
+It's fed into the same judging prompt as a third piece of context. Important
+distinction: it doesn't decide *whether* something is meaningful — the
+watch's own criteria still owns that — it only shifts *how* a meaningful
+change gets explained. Proved this with a real test: the exact same change
+through two opposite interest profiles stayed "meaningful" either way, but
+the written summary genuinely changed to emphasize the part of the change
+that matched each profile.
+
 ## How to see the shape of the whole system
 
 A visual class diagram of the current architecture was published as a
@@ -84,8 +95,7 @@ ask for a refreshed one if it's been a while since new pieces were added.
 
 ## What's not built yet
 
-No real user-interest profile beyond each watch's own criteria (in progress
-this week), no retry/resilience hardening around flaky external calls, no
-actual notification delivery (email/Slack — the setting exists, nothing
-sends yet), and nothing is deployed anywhere outside this machine. See
+No retry/resilience hardening around flaky external calls yet, no actual
+notification delivery (email/Slack — the setting exists, nothing sends
+yet), and nothing is deployed anywhere outside this machine. See
 `DAILY-PLAN.md` for exactly what's next.

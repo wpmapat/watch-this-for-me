@@ -19,7 +19,7 @@ last bit into the next session if something runs over.
 
 - **Active week:** Week 4 — RAG + production workflow
 - **Active branch:** `feature/week4-rag-production`
-- **Last updated:** 2026-10-27
+- **Last updated:** 2026-10-28
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 - **Week 2 status:** Complete and merged to `master` (PR #3)
 - **Week 3 status:** Complete and merged to `master` (PR #4)
@@ -34,6 +34,7 @@ last bit into the next session if something runs over.
 **Week 4**
 - [x] Vector store + embeddings — each observation's classification summary gets embedded (OpenAI `text-embedding-3-small`) and stored directly on the `Observation` in Cosmos. Went with a simple local/in-process store rather than Azure AI Search: the search space is bounded (at most 10 observations per watch, our existing pruning cap), so brute-force comparison is the right-sized choice, and nothing later in the plan needs a dedicated search service. Verified live through the real `WatchCheckService.CheckAsync`: a real diff produced a real classification and a real 1536-dimension embedding. Caught and fixed a real DI bug along the way (a double registration was injecting an unconfigured `HttpClient`).
 - [x] RAG retrieval — before judging a new change, embed the diff and brute-force cosine-similarity search the watch's own stored embeddings (`EmbeddingSimilarity.FindTopMatches`); feed the top matches into both `IChangeClassifier` and `IInvestigationAgent` as context, purely for judgment *consistency*, not a novelty/dedup filter (a recurring meaningful-change type still gets notified every time per the watch's own criteria - confirmed this distinction explicitly with the user before building). The investigation agent also seeds each match as a real, citable `EvidenceItem`. Verified live: a genuine new diff found last run's real classified observation as a similarity match (score 0.56), stayed consistent with its prior category, and the notification cited the match as a grounded source.
+- [x] User interest profile — a single global `InterestProfile` (free-text, singleton - no multi-user/auth yet) stored in its own Cosmos container, managed via `GET`/`PUT /api/interest-profile`. Threaded into both the classifier and investigation agent as a third piece of context, deliberately scoped as color rather than a gate: the watch's own `MeaningfulChangeCriteria` still decides *whether* something is meaningful, the profile can only shift *how* it's explained. Verified live: the same diff/criteria through two opposite interest profiles both correctly stayed `meaningful=true`/`new_feature`, but the summary text genuinely differed, each one highlighting the half of the diff matching its stated interest.
 
 ---
 
@@ -157,7 +158,7 @@ Goal: give the agent memory and make it production-sturdy.
 |---|---|---|---|---|
 | Oct 26 | Mon | 2h | Vector store + embeddings | [x] |
 | Oct 27 | Tue | 3h | RAG retrieval | [x] |
-| Oct 28 | Wed | 3h | User interest profile | [ ] |
+| Oct 28 | Wed | 3h | User interest profile | [x] |
 | Oct 29 | Thu | 3h | Retries, timeouts, idempotency | [ ] |
 | Oct 30 | Fri | 3h | Execution state + dead-letter handling | [ ] |
 
