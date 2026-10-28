@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using WatchThisForMe.Core.Observations;
+using WatchThisForMe.Core.Preferences;
 using WatchThisForMe.Core.Watches;
 
 namespace WatchThisForMe.Infrastructure.Cosmos;
@@ -21,6 +22,7 @@ public static class CosmosServiceCollectionExtensions
         services.AddSingleton<CosmosDbInitializer>();
         services.AddSingleton<IWatchRepository, CosmosWatchRepository>();
         services.AddSingleton<IObservationRepository, CosmosObservationRepository>();
+        services.AddSingleton<IInterestProfileRepository, CosmosInterestProfileRepository>();
 
         return services;
     }

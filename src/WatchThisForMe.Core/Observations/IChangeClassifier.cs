@@ -6,5 +6,6 @@ public interface IChangeClassifier
         string diffSummary,
         string meaningfulChangeCriteria,
         IReadOnlyList<SimilarObservation> similarPastObservations,
+        string userInterests,
         CancellationToken cancellationToken = default);
 }

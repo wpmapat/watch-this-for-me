@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using WatchThisForMe.Api.Contracts;
 using WatchThisForMe.Core.Observations;
+using WatchThisForMe.Core.Preferences;
 using WatchThisForMe.Core.Watches;
 using WatchThisForMe.Infrastructure.Embeddings;
 using WatchThisForMe.Infrastructure.Monitoring;
@@ -14,7 +15,8 @@ public class WatchesController(
     IObservationRepository observationRepository,
     WatchCheckService checkService,
     IWatchRequestInterpreter requestInterpreter,
-    IInvestigationAgent investigationAgent) : ControllerBase
+    IInvestigationAgent investigationAgent,
+    IInterestProfileRepository interestProfileRepository) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<Watch>> Create(CreateWatchRequest request, CancellationToken cancellationToken)
@@ -124,7 +126,10 @@ public class WatchesController(
             ? EmbeddingSimilarity.FindTopMatches(embedding, history.Where(o => o.Id != latest.Id), topN: 3)
             : [];
 
-        var result = await investigationAgent.InvestigateAsync(id, latest.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, cancellationToken);
+        var interestProfile = await interestProfileRepository.GetAsync(cancellationToken);
+
+        var result = await investigationAgent.InvestigateAsync(
+            id, latest.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, interestProfile.Interests, cancellationToken);
         return Ok(result);
     }
 

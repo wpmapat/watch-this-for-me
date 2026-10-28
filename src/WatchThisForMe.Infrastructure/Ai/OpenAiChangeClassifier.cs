@@ -15,7 +15,10 @@ public class OpenAiChangeClassifier(OpenAiResponsesClient client) : IChangeClass
         + "what changed and why it does or doesn't matter. You may be shown similar past changes on this same "
         + "watch and how they were judged - use them to stay consistent (e.g. don't call this one meaningful "
         + "if a near-identical past change was judged not meaningful, and vice versa), but still judge this "
-        + "diff on its own merits against the user's criteria rather than copying a past verdict blindly.";
+        + "diff on its own merits against the user's criteria rather than copying a past verdict blindly. "
+        + "You may also be given the user's general interests, separate from this watch's own criteria - use "
+        + "them only as color (e.g. to sharpen the summary or lean the confidence), never to override the "
+        + "watch's own stated criteria for what counts as meaningful here.";
 
     private static readonly JsonElement Schema = JsonDocument.Parse("""
         {
@@ -35,6 +38,7 @@ public class OpenAiChangeClassifier(OpenAiResponsesClient client) : IChangeClass
         string diffSummary,
         string meaningfulChangeCriteria,
         IReadOnlyList<SimilarObservation> similarPastObservations,
+        string userInterests,
         CancellationToken cancellationToken = default)
     {
         var pastContext = similarPastObservations.Count == 0
@@ -44,6 +48,8 @@ public class OpenAiChangeClassifier(OpenAiResponsesClient client) : IChangeClass
 
         var input = $"""
             User's meaningful-change criteria: {meaningfulChangeCriteria}
+
+            User's general interests (context only, doesn't override the criteria above): {(string.IsNullOrWhiteSpace(userInterests) ? "None stated." : userInterests)}
 
             Similar past changes on this watch:
             {pastContext}

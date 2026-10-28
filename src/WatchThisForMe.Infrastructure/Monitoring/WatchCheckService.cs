@@ -1,4 +1,5 @@
 using WatchThisForMe.Core.Observations;
+using WatchThisForMe.Core.Preferences;
 using WatchThisForMe.Core.Sources;
 using WatchThisForMe.Core.Watches;
 using WatchThisForMe.Infrastructure.Diffing;
@@ -11,7 +12,8 @@ public class WatchCheckService(
     IObservationRepository observationRepository,
     ISourceFetcher sourceFetcher,
     IChangeClassifier changeClassifier,
-    IEmbeddingGenerator embeddingGenerator)
+    IEmbeddingGenerator embeddingGenerator,
+    IInterestProfileRepository interestProfileRepository)
 {
     private const int MaxObservationsPerWatch = 10;
     private const int MaxSimilarPastMatches = 3;
@@ -59,8 +61,10 @@ public class WatchCheckService(
             var queryEmbedding = await embeddingGenerator.GenerateAsync(observation.DiffSummary, cancellationToken);
             var history = await observationRepository.ListAsync(watchId, MaxObservationsPerWatch, cancellationToken);
             var similarPast = EmbeddingSimilarity.FindTopMatches(queryEmbedding, history, MaxSimilarPastMatches);
+            var interestProfile = await interestProfileRepository.GetAsync(cancellationToken);
 
-            var classification = await changeClassifier.ClassifyAsync(observation.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, cancellationToken);
+            var classification = await changeClassifier.ClassifyAsync(
+                observation.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, interestProfile.Interests, cancellationToken);
             observation.Meaningful = classification.Meaningful;
             observation.Category = classification.Category;
             observation.Confidence = classification.Confidence;
