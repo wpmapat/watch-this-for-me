@@ -5,6 +5,9 @@ This file tracks daily progress against the 5–6 week build plan in
 Dates are a *target guide*, not a hard deadline — if a day runs long
 or short, just shift the remaining checkboxes rather than the dates.
 
+For a plain-English explanation of what each piece actually does and why,
+see `PROJECT-NOTES.md` — updated alongside this file as new concepts land.
+
 **Available time:** 2 hours on Mondays, 3 hours Tuesday–Friday (14 hours/week).
 Each day's description is scoped to fit that session, not a full workday —
 treat it as "what to get done this session," and it's fine to roll the
