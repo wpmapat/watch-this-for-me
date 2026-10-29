@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Mvc;
 using WatchThisForMe.Api.Contracts;
+using WatchThisForMe.Core.Executions;
 using WatchThisForMe.Core.Observations;
+using WatchThisForMe.Core.Preferences;
 using WatchThisForMe.Core.Watches;
+using WatchThisForMe.Infrastructure.Embeddings;
 using WatchThisForMe.Infrastructure.Monitoring;
 
 namespace WatchThisForMe.Api.Controllers;
@@ -13,7 +16,9 @@ public class WatchesController(
     IObservationRepository observationRepository,
     WatchCheckService checkService,
     IWatchRequestInterpreter requestInterpreter,
-    IInvestigationAgent investigationAgent) : ControllerBase
+    IInvestigationAgent investigationAgent,
+    IInterestProfileRepository interestProfileRepository,
+    IWatchExecutionRepository executionRepository) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<Watch>> Create(CreateWatchRequest request, CancellationToken cancellationToken)
@@ -101,6 +106,13 @@ public class WatchesController(
         return Ok(observations);
     }
 
+    [HttpGet("{id}/executions")]
+    public async Task<ActionResult<IReadOnlyList<WatchExecution>>> ListExecutions(string id, [FromQuery] int count = 10, CancellationToken cancellationToken = default)
+    {
+        var executions = await executionRepository.ListAsync(id, count, cancellationToken);
+        return Ok(executions);
+    }
+
     [HttpPost("{id}/investigate")]
     public async Task<ActionResult<InvestigationResult>> Investigate(string id, CancellationToken cancellationToken)
     {
@@ -116,7 +128,17 @@ public class WatchesController(
             return BadRequest("No diff available to investigate yet - check this watch at least twice first.");
         }
 
-        var result = await investigationAgent.InvestigateAsync(id, latest.DiffSummary, watch.MeaningfulChangeCriteria, cancellationToken);
+        // Reuse latest.Embedding (already computed from its own classification summary during
+        // the check) as the query - no need to call the embedding API again here.
+        var history = await observationRepository.ListAsync(id, maxCount: 10, cancellationToken);
+        var similarPast = latest.Embedding is { } embedding
+            ? EmbeddingSimilarity.FindTopMatches(embedding, history.Where(o => o.Id != latest.Id), topN: 3)
+            : [];
+
+        var interestProfile = await interestProfileRepository.GetAsync(cancellationToken);
+
+        var result = await investigationAgent.InvestigateAsync(
+            id, latest.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, interestProfile.Interests, cancellationToken);
         return Ok(result);
     }
 

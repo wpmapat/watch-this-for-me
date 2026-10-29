@@ -23,4 +23,8 @@ public class Observation
     public double? Confidence { get; set; }
 
     public string? ClassificationSummary { get; set; }
+
+    // Embedding of ClassificationSummary - lets tomorrow's RAG retrieval find semantically
+    // similar past observations instead of only exact lookups by watch id.
+    public float[]? Embedding { get; set; }
 }

@@ -20,7 +20,7 @@ public static class AiServiceCollectionExtensions
         {
             client.BaseAddress = new Uri("https://api.openai.com/");
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
-        });
+        }).AddStandardResilienceHandler();
 
         // Named (not typed) client: the investigation agent is a long-lived Singleton that keeps
         // its own MCP connection open across calls, so it's constructed manually below rather
@@ -29,7 +29,13 @@ public static class AiServiceCollectionExtensions
         {
             client.BaseAddress = new Uri("https://api.openai.com/");
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
-        });
+        }).AddStandardResilienceHandler();
+
+        services.AddHttpClient<IEmbeddingGenerator, OpenAiEmbeddingGenerator>(client =>
+        {
+            client.BaseAddress = new Uri("https://api.openai.com/");
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
+        }).AddStandardResilienceHandler();
 
         services.AddSingleton<IWatchRequestInterpreter, OpenAiWatchRequestInterpreter>();
         services.AddSingleton<IChangeClassifier, OpenAiChangeClassifier>();

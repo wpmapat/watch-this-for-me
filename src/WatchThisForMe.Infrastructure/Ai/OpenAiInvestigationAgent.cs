@@ -19,7 +19,11 @@ public class OpenAiInvestigationAgent(HttpClient httpClient, OpenAiOptions optio
         + "meaningful to the user, based on their stated criteria. You have read-only tools available to "
         + "look up more context (e.g. this watch's own recent history, or the source's GitHub releases/issues) "
         + "if the diff alone doesn't give you enough information. Only call a tool if it would genuinely change "
-        + "your answer - don't investigate for the sake of it. When you have enough information, respond with "
+        + "your answer - don't investigate for the sake of it. You may also be shown similar past changes on "
+        + "this same watch and how they were judged - use them to stay consistent, but still judge this change "
+        + "on its own merits. You may also be given the user's general interests, separate from the watch's own "
+        + "criteria - use them only as color, never to override the watch's own criteria. "
+        + "When you have enough information, respond with "
         + "your final classification: meaningful (bool), category (short label), confidence (0-1), and summary "
         + "(one sentence, citing what you found).";
 
@@ -58,11 +62,20 @@ public class OpenAiInvestigationAgent(HttpClient httpClient, OpenAiOptions optio
     private McpClient? _mcpClient;
 
     public async Task<InvestigationResult> InvestigateAsync(
-        string watchId, string diffSummary, string meaningfulChangeCriteria, CancellationToken cancellationToken = default)
+        string watchId,
+        string diffSummary,
+        string meaningfulChangeCriteria,
+        IReadOnlyList<SimilarObservation> similarPastObservations,
+        string userInterests,
+        CancellationToken cancellationToken = default)
     {
         // Seeded with the diff itself - even if the agent calls no tools at all, the
         // notification still has at least one real source to ground its claims in.
+        // Similar past observations are seeded too, so if the agent leans on one for
+        // consistency, the notification can cite it as a real, traceable source.
         var evidence = new List<EvidenceItem> { new("diff", diffSummary) };
+        evidence.AddRange(similarPastObservations.Select(s =>
+            new EvidenceItem("similar_past_observation", $"{s.CheckedAt:u} (meaningful: {s.Meaningful}, category: {s.Category}): {s.Summary}")));
 
         var mcpClient = await GetMcpClientAsync(cancellationToken);
         var allTools = await mcpClient.ListToolsAsync(cancellationToken: cancellationToken);
@@ -74,9 +87,19 @@ public class OpenAiInvestigationAgent(HttpClient httpClient, OpenAiOptions optio
             .Select(t => (object)new { type = "function", name = t.Name, description = t.Description, parameters = t.JsonSchema })
             .ToList();
 
+        var pastContext = similarPastObservations.Count == 0
+            ? "None."
+            : string.Join("\n", similarPastObservations.Select(s =>
+                $"- {s.CheckedAt:u} (judged meaningful: {s.Meaningful}, category: {s.Category}): {s.Summary}"));
+
         object requestInput = $"""
             Watch id: {watchId}
             User's meaningful-change criteria: {meaningfulChangeCriteria}
+
+            User's general interests (context only, doesn't override the criteria above): {(string.IsNullOrWhiteSpace(userInterests) ? "None stated." : userInterests)}
+
+            Similar past changes on this watch:
+            {pastContext}
 
             Diff of what changed:
             {diffSummary}

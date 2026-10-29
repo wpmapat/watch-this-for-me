@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Http.Resilience;
 
 namespace WatchThisForMe.Infrastructure.GitHub;
 
@@ -23,7 +24,7 @@ public static class GitHubServiceCollectionExtensions
             {
                 client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", options.Token);
             }
-        });
+        }).AddStandardResilienceHandler();
 
         return services;
     }
