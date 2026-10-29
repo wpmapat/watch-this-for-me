@@ -18,7 +18,28 @@ public class WatchCheckService(
     private const int MaxObservationsPerWatch = 10;
     private const int MaxSimilarPastMatches = 3;
 
+    // Per-watch lock so a retried or overlapping call (e.g. a client retry after a timeout
+    // racing the original still-running request, or a manual check overlapping the scheduler's
+    // own check of the same watch) can't both see "unchanged" and create two observations for
+    // the same real-world change. Only guards a single process - a multi-instance deployment
+    // would need a distributed lock instead, but this app only ever runs as one instance today.
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> _watchLocks = new();
+
     public async Task<Observation?> CheckAsync(string watchId, CancellationToken cancellationToken = default)
+    {
+        var watchLock = _watchLocks.GetOrAdd(watchId, _ => new SemaphoreSlim(1, 1));
+        await watchLock.WaitAsync(cancellationToken);
+        try
+        {
+            return await CheckInternalAsync(watchId, cancellationToken);
+        }
+        finally
+        {
+            watchLock.Release();
+        }
+    }
+
+    private async Task<Observation?> CheckInternalAsync(string watchId, CancellationToken cancellationToken)
     {
         var watch = await watchRepository.GetAsync(watchId, cancellationToken);
         if (watch is null)
