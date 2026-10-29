@@ -22,5 +22,9 @@ public class CosmosDbInitializer(CosmosClient client, IOptions<CosmosOptions> op
         await database.Database.CreateContainerIfNotExistsAsync(
             new ContainerProperties(_options.InterestProfileContainerName, partitionKeyPath: "/id"),
             cancellationToken: cancellationToken);
+
+        await database.Database.CreateContainerIfNotExistsAsync(
+            new ContainerProperties(_options.ExecutionsContainerName, partitionKeyPath: "/watchId"),
+            cancellationToken: cancellationToken);
     }
 }

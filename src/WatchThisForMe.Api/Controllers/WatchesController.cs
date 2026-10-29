@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using WatchThisForMe.Api.Contracts;
+using WatchThisForMe.Core.Executions;
 using WatchThisForMe.Core.Observations;
 using WatchThisForMe.Core.Preferences;
 using WatchThisForMe.Core.Watches;
@@ -16,7 +17,8 @@ public class WatchesController(
     WatchCheckService checkService,
     IWatchRequestInterpreter requestInterpreter,
     IInvestigationAgent investigationAgent,
-    IInterestProfileRepository interestProfileRepository) : ControllerBase
+    IInterestProfileRepository interestProfileRepository,
+    IWatchExecutionRepository executionRepository) : ControllerBase
 {
     [HttpPost]
     public async Task<ActionResult<Watch>> Create(CreateWatchRequest request, CancellationToken cancellationToken)
@@ -102,6 +104,13 @@ public class WatchesController(
     {
         var observations = await observationRepository.ListAsync(id, count, cancellationToken);
         return Ok(observations);
+    }
+
+    [HttpGet("{id}/executions")]
+    public async Task<ActionResult<IReadOnlyList<WatchExecution>>> ListExecutions(string id, [FromQuery] int count = 10, CancellationToken cancellationToken = default)
+    {
+        var executions = await executionRepository.ListAsync(id, count, cancellationToken);
+        return Ok(executions);
     }
 
     [HttpPost("{id}/investigate")]

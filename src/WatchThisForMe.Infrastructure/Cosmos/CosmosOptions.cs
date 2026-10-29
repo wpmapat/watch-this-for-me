@@ -14,5 +14,7 @@ public class CosmosOptions
 
     public string InterestProfileContainerName { get; set; } = "InterestProfile";
 
+    public string ExecutionsContainerName { get; set; } = "Executions";
+
     public bool IsEmulator { get; set; }
 }

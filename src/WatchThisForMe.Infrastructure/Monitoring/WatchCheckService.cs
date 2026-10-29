@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
+using WatchThisForMe.Core.Executions;
 using WatchThisForMe.Core.Observations;
 using WatchThisForMe.Core.Preferences;
 using WatchThisForMe.Core.Sources;
@@ -13,17 +16,25 @@ public class WatchCheckService(
     ISourceFetcher sourceFetcher,
     IChangeClassifier changeClassifier,
     IEmbeddingGenerator embeddingGenerator,
-    IInterestProfileRepository interestProfileRepository)
+    IInterestProfileRepository interestProfileRepository,
+    IWatchExecutionRepository executionRepository,
+    ILogger<WatchCheckService> logger)
 {
     private const int MaxObservationsPerWatch = 10;
     private const int MaxSimilarPastMatches = 3;
+    private const int RecentExecutionsToInspect = 5;
+
+    // Consecutive failed runs before a watch is dead-lettered (Status -> DeadLettered) and
+    // stops being scheduled automatically - a permanently broken source (dead URL, revoked
+    // token) shouldn't be silently retried forever.
+    private const int DeadLetterThreshold = 3;
 
     // Per-watch lock so a retried or overlapping call (e.g. a client retry after a timeout
     // racing the original still-running request, or a manual check overlapping the scheduler's
     // own check of the same watch) can't both see "unchanged" and create two observations for
     // the same real-world change. Only guards a single process - a multi-instance deployment
     // would need a distributed lock instead, but this app only ever runs as one instance today.
-    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, SemaphoreSlim> _watchLocks = new();
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _watchLocks = new();
 
     public async Task<Observation?> CheckAsync(string watchId, CancellationToken cancellationToken = default)
     {
@@ -47,6 +58,67 @@ public class WatchCheckService(
             return null;
         }
 
+        var recentExecutions = await executionRepository.ListAsync(watchId, RecentExecutionsToInspect, cancellationToken);
+        var consecutiveFailures = CountConsecutiveFailures(recentExecutions);
+
+        var execution = new WatchExecution
+        {
+            Id = Guid.NewGuid().ToString(),
+            WatchId = watchId,
+            StartedAt = DateTimeOffset.UtcNow,
+            Status = consecutiveFailures > 0 ? WatchExecutionStatus.Retrying : WatchExecutionStatus.Started,
+            AttemptNumber = consecutiveFailures + 1
+        };
+        await executionRepository.CreateAsync(execution, cancellationToken);
+
+        try
+        {
+            var result = await RunCheckAsync(watch, watchId, cancellationToken);
+
+            execution.Status = WatchExecutionStatus.Succeeded;
+            execution.CompletedAt = DateTimeOffset.UtcNow;
+            await executionRepository.UpdateAsync(execution, cancellationToken);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            execution.Status = WatchExecutionStatus.Failed;
+            execution.CompletedAt = DateTimeOffset.UtcNow;
+            execution.ErrorMessage = ex.Message;
+            await executionRepository.UpdateAsync(execution, cancellationToken);
+
+            if (execution.AttemptNumber >= DeadLetterThreshold)
+            {
+                watch.Status = WatchStatus.DeadLettered;
+                await watchRepository.UpdateAsync(watch, cancellationToken);
+                logger.LogWarning(
+                    "Watch {WatchId} dead-lettered after {AttemptNumber} consecutive failed runs. Last error: {Error}",
+                    watchId, execution.AttemptNumber, ex.Message);
+            }
+
+            throw;
+        }
+    }
+
+    private static int CountConsecutiveFailures(IReadOnlyList<WatchExecution> recentExecutionsMostRecentFirst)
+    {
+        var count = 0;
+        foreach (var execution in recentExecutionsMostRecentFirst)
+        {
+            if (execution.Status != WatchExecutionStatus.Failed)
+            {
+                break;
+            }
+
+            count++;
+        }
+
+        return count;
+    }
+
+    private async Task<Observation?> RunCheckAsync(Watch watch, string watchId, CancellationToken cancellationToken)
+    {
         var snapshot = await sourceFetcher.FetchAsync(watch.Source, cancellationToken);
         var previous = await observationRepository.GetLatestAsync(watchId, cancellationToken);
         var changed = previous is null || previous.ContentHash != snapshot.ContentHash;
@@ -92,7 +164,7 @@ public class WatchCheckService(
             observation.ClassificationSummary = classification.Summary;
 
             // Embed the summary, not the raw diff - it's the compact, semantic statement of
-            // what happened, which is what tomorrow's similarity search should match against.
+            // what happened, which is what the similarity search matches against.
             observation.Embedding = await embeddingGenerator.GenerateAsync(classification.Summary, cancellationToken);
         }
 
