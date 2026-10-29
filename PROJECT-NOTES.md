@@ -87,6 +87,23 @@ through two opposite interest profiles stayed "meaningful" either way, but
 the written summary genuinely changed to emphasize the part of the change
 that matched each profile.
 
+**Retries and timeouts (added Week 4)** — every network call this system
+makes (fetching a web page, calling OpenAI, calling GitHub) can fail for
+reasons that have nothing to do with the system itself — a momentary
+network blip, a brief rate limit. Rather than giving up immediately on the
+first such hiccup, every outbound call now automatically retries a few
+times with a backoff delay before actually failing. This isn't custom code
+we wrote — it's a standard, well-tested library behavior (`Polly`, via a
+Microsoft package) wired onto each network client.
+
+**Idempotency (added Week 4)** — a related but separate concern: if a
+check for the same watch somehow runs twice at once (say, a manual check
+you trigger happens to overlap with the scheduler's own automatic check of
+that same watch), the system must not end up recording the same real-world
+change twice, or notifying about it twice. A lock per watch now makes sure
+only one check for a given watch actually runs at a time — a second,
+overlapping check waits its turn, then finds nothing new to do.
+
 ## How to see the shape of the whole system
 
 A visual class diagram of the current architecture was published as a
@@ -95,7 +112,7 @@ ask for a refreshed one if it's been a while since new pieces were added.
 
 ## What's not built yet
 
-No retry/resilience hardening around flaky external calls yet, no actual
-notification delivery (email/Slack — the setting exists, nothing sends
-yet), and nothing is deployed anywhere outside this machine. See
+No actual notification delivery yet (email/Slack — the setting exists,
+nothing sends yet), and nothing is deployed anywhere outside this machine.
+See
 `DAILY-PLAN.md` for exactly what's next.
