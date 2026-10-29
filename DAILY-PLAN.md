@@ -17,9 +17,9 @@ last bit into the next session if something runs over.
 
 ## Current Status
 
-- **Active week:** Week 4 — RAG + production workflow
+- **Active week:** Week 4 — RAG + production workflow (complete, not yet merged)
 - **Active branch:** `feature/week4-rag-production`
-- **Last updated:** 2026-10-29
+- **Last updated:** 2026-10-30
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 - **Week 2 status:** Complete and merged to `master` (PR #3)
 - **Week 3 status:** Complete and merged to `master` (PR #4)
@@ -36,6 +36,7 @@ last bit into the next session if something runs over.
 - [x] RAG retrieval — before judging a new change, embed the diff and brute-force cosine-similarity search the watch's own stored embeddings (`EmbeddingSimilarity.FindTopMatches`); feed the top matches into both `IChangeClassifier` and `IInvestigationAgent` as context, purely for judgment *consistency*, not a novelty/dedup filter (a recurring meaningful-change type still gets notified every time per the watch's own criteria - confirmed this distinction explicitly with the user before building). The investigation agent also seeds each match as a real, citable `EvidenceItem`. Verified live: a genuine new diff found last run's real classified observation as a similarity match (score 0.56), stayed consistent with its prior category, and the notification cited the match as a grounded source.
 - [x] User interest profile — a single global `InterestProfile` (free-text, singleton - no multi-user/auth yet) stored in its own Cosmos container, managed via `GET`/`PUT /api/interest-profile`. Threaded into both the classifier and investigation agent as a third piece of context, deliberately scoped as color rather than a gate: the watch's own `MeaningfulChangeCriteria` still decides *whether* something is meaningful, the profile can only shift *how* it's explained. Verified live: the same diff/criteria through two opposite interest profiles both correctly stayed `meaningful=true`/`new_feature`, but the summary text genuinely differed, each one highlighting the half of the diff matching its stated interest.
 - [x] Retries, timeouts, idempotency — all 5 outbound `HttpClient`s (web fetch, GitHub, and the 3 OpenAI clients) get `AddStandardResilienceHandler()` from `Microsoft.Extensions.Http.Resilience` (automatic retry + backoff, circuit breaker, timeouts - sensible defaults, no hand-rolled retry logic). `WatchCheckService.CheckAsync` now takes a per-watchId lock before doing any work, so a retried or overlapping call for the same watch can't create duplicate observations for the same real change (single-process lock only - noted as a caveat for a future multi-instance deployment). Verified live: an unreachable-endpoint test showed 4 real attempts (1 + 3 retries) over ~25s before failing; 3 concurrent `CheckAsync` calls on the same real watch produced exactly 1 new observation, with all 3 callers getting back the same observation id.
+- [x] Execution state + dead-letter handling — every check now creates a `WatchExecution` record (Started/Retrying → Succeeded/Failed, with a consecutive-failure `AttemptNumber`) in its own Cosmos container, exposed via `GET /api/watches/{id}/executions`. After 3 consecutive failures, the watch automatically flips to a new `WatchStatus.DeadLettered` - reusing the scheduler's existing "only run Active watches" filter rather than a separate dead-letter queue, so a permanently broken source stops being silently retried forever; a user can flip it back to Active once fixed. Verified live: a real watch pointed at an unreachable source showed `AttemptNumber` incrementing 1→2→3 across 3 real failures, with the watch auto-flipping to `DeadLettered` exactly on the 3rd; a real successful check on a real watch correctly showed `AttemptNumber=1` via the new endpoint.
 
 ---
 
@@ -161,7 +162,7 @@ Goal: give the agent memory and make it production-sturdy.
 | Oct 27 | Tue | 3h | RAG retrieval | [x] |
 | Oct 28 | Wed | 3h | User interest profile | [x] |
 | Oct 29 | Thu | 3h | Retries, timeouts, idempotency | [x] |
-| Oct 30 | Fri | 3h | Execution state + dead-letter handling | [ ] |
+| Oct 30 | Fri | 3h | Execution state + dead-letter handling | [x] |
 
 **Mon Oct 26 — Vector store + embeddings.** Get the infrastructure in
 place to store and search embeddings.

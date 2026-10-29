@@ -104,6 +104,16 @@ change twice, or notifying about it twice. A lock per watch now makes sure
 only one check for a given watch actually runs at a time — a second,
 overlapping check waits its turn, then finds nothing new to do.
 
+**Execution tracking and dead-lettering (added Week 4)** — every time the
+system checks a watch, it now keeps a durable record of what happened to
+that specific attempt: did it start, succeed, or fail, and if it failed,
+why. Previously this only existed as a log line that would scroll away.
+If a watch fails three checks in a row — meaning something is genuinely
+broken (a dead link, an expired credential), not just unlucky timing —
+the system stops trying it automatically and flags it clearly as needing
+attention, rather than quietly failing forever in the background. You can
+tell it to try again once you've fixed the underlying problem.
+
 ## How to see the shape of the whole system
 
 A visual class diagram of the current architecture was published as a
