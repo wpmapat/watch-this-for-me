@@ -17,9 +17,9 @@ last bit into the next session if something runs over.
 
 ## Current Status
 
-- **Active week:** Week 5 — Evaluation + productionization (not yet started)
-- **Active branch:** `master` (no Week 5 branch cut yet)
-- **Last updated:** 2026-10-30
+- **Active week:** Week 5 — Evaluation + productionization
+- **Active branch:** `feature/week5-evaluation-production`
+- **Last updated:** 2026-11-02
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 - **Week 2 status:** Complete and merged to `master` (PR #3)
 - **Week 3 status:** Complete and merged to `master` (PR #4)
@@ -33,6 +33,9 @@ last bit into the next session if something runs over.
 **Week 3** — Own MCP server (`get_web_page`, `get_previous_observation`, `save_observation`) plus GitHub tools (`get_github_release`, `get_github_issues`); an agent investigation loop that decides on its own which tools to call (capped at 5); grounded notification generation that can only cite evidence actually gathered during investigation; proved end-to-end against a real GitHub repo watch, fixing a real null-reference bug along the way. (Full detail in the Week 3 section below.)
 
 **Week 4** — Vector store + embeddings (local/in-process cosine similarity, not Azure AI Search); RAG retrieval feeding similar past observations into classification/investigation for judgment consistency (not a dedup filter); a user interest profile that colors explanations without overriding each watch's own criteria; retries/timeouts on all outbound HTTP calls via `Microsoft.Extensions.Http.Resilience`; per-watch idempotency locking; execution state tracking and automatic dead-lettering after 3 consecutive failures. (Full detail in the Week 4 section below.)
+
+**Week 5**
+- [x] Build evaluation dataset — `eval/dataset.json`: 97 labeled ground-truth examples (55 meaningful / 42 not) across 8 realistic domains (GitHub releases, pricing, security advisories, API docs, job listings, blog, status pages, general). Checked our own Cosmos history first - only 8 real diffs existed (rest pruned by the 10-per-watch cap) and all 8 turned out to be 100% GitHub nav-boilerplate with zero lines showing the actual release change, so using them as ground truth would have been circular (testing the classifier against its own past guesses). Went fully authored instead, each example labeled by reading the diff text alone, with similar-looking meaningful/not-meaningful pairs per domain so the eval tests judgment at the boundary, not just obvious cases. Reviewed and approved by the user before being locked in.
 
 ---
 
@@ -190,7 +193,7 @@ Goal: prove it actually works, and make it deployable. Don't skip this week.
 
 | Date | Day | Hrs | Focus | Status |
 |---|---|---|---|---|
-| Nov 2 | Mon | 2h | Build evaluation dataset | [ ] |
+| Nov 2 | Mon | 2h | Build evaluation dataset | [x] |
 | Nov 3 | Tue | 3h | Run evaluation | [ ] |
 | Nov 4 | Wed | 3h | Observability | [ ] |
 | Nov 5 | Thu | 3h | Security | [ ] |

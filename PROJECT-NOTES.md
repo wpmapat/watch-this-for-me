@@ -114,6 +114,19 @@ the system stops trying it automatically and flags it clearly as needing
 attention, rather than quietly failing forever in the background. You can
 tell it to try again once you've fixed the underlying problem.
 
+**Evaluation dataset (added Week 5)** — up to now, every AI feature was
+checked by trying it once or twice and eyeballing whether the answer looked
+right. That proves a feature *works*, but not how *good* it is overall. This
+week starts building an actual measurement: a set of real example changes,
+each with a correct answer decided independently by a human (read the diff,
+decide "meaningful or not," without looking at what the AI said) — the
+answer key. Next, the real classifier gets run against every example in
+that set, and its answers get compared to the human answers to produce real
+numbers: how often it correctly flags things that matter (recall), and how
+often it wrongly flags things that don't (precision). That's `eval/dataset.json`
+and `eval/README.md` — 97 labeled examples, deliberately a mix of meaningful
+and not, covering several different kinds of watched sources.
+
 ## How to see the shape of the whole system
 
 A visual class diagram of the current architecture was published as a
