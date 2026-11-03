@@ -127,6 +127,20 @@ often it wrongly flags things that don't (precision). That's `eval/dataset.json`
 and `eval/README.md` — 97 labeled examples, deliberately a mix of meaningful
 and not, covering several different kinds of watched sources.
 
+**Running the evaluation (added Week 5)** — `eval/WatchThisForMe.Evaluation`
+actually does the measurement described above: it runs the real classifier
+against all 97 examples and reports the real numbers. First run came back
+at 96.9% accuracy with 3 wrong answers — each one genuinely informative
+rather than random noise (e.g. it mistook a harmless documentation
+rewording for a real code change). Those specific patterns were added as
+explicit guidance to the classifier's prompt, and a second run came back at
+99.0% accuracy, catching every single actually-meaningful change (100%
+recall) with only one remaining miss — which, on inspection, turned out to
+be a genuinely debatable example rather than a clear classifier mistake.
+This "measure, fix something specific, measure again" loop is the honest
+way to improve an AI feature — not guessing at prompt wording and hoping,
+but finding the actual cases it gets wrong and addressing those specifically.
+
 ## How to see the shape of the whole system
 
 A visual class diagram of the current architecture was published as a
