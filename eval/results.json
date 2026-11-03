@@ -1,0 +1,22 @@
+{
+  "totalExamples": 97,
+  "truePositives": 55,
+  "trueNegatives": 41,
+  "falsePositives": 1,
+  "falseNegatives": 0,
+  "accuracy": 0.9896907216494846,
+  "precision": 0.9821428571428571,
+  "recall": 1,
+  "f1": 0.9909909909909909,
+  "mismatches": [
+    {
+      "id": "docs-06",
+      "domain": "api-docs",
+      "expectedMeaningful": false,
+      "expectedCategory": "minor_wording",
+      "actualMeaningful": true,
+      "actualCategory": "breaking_change",
+      "actualSummary": "The change from returning a list to returning an array of user objects indicates a breaking change in the API\u0027s return type, which could affect existing implementations."
+    }
+  ]
+}

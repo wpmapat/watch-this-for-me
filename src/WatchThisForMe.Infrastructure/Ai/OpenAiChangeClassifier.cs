@@ -18,7 +18,15 @@ public class OpenAiChangeClassifier(OpenAiResponsesClient client) : IChangeClass
         + "diff on its own merits against the user's criteria rather than copying a past verdict blindly. "
         + "You may also be given the user's general interests, separate from this watch's own criteria - use "
         + "them only as color (e.g. to sharpen the summary or lean the confidence), never to override the "
-        + "watch's own stated criteria for what counts as meaningful here.";
+        + "watch's own stated criteria for what counts as meaningful here. Watch for two specific traps: "
+        + "(1) When a diff shows code-like signatures (e.g. `Type paramName`), check carefully whether it's "
+        + "the TYPE or just the parameter NAME that changed - a type change is a real breaking change even if "
+        + "the name stays the same, but a name-only change usually isn't. Also, prose describing existing "
+        + "behavior in different words (e.g. calling the same data \"a list\" vs \"an array\") is not a type "
+        + "change unless the diff shows an actual code signature changing. (2) When criteria asks about \"new\" "
+        + "occurrences of something (new vulnerabilities, new releases, new incidents), require an actual new "
+        + "instance of that thing - a change to the *process* for reporting or handling it (e.g. a new contact "
+        + "method or portal) is not itself a new occurrence.";
 
     private static readonly JsonElement Schema = JsonDocument.Parse("""
         {
