@@ -19,7 +19,7 @@ last bit into the next session if something runs over.
 
 - **Active week:** Week 5 — Evaluation + productionization
 - **Active branch:** `feature/week5-evaluation-production`
-- **Last updated:** 2026-11-03
+- **Last updated:** 2026-11-04
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 - **Week 2 status:** Complete and merged to `master` (PR #3)
 - **Week 3 status:** Complete and merged to `master` (PR #4)
@@ -37,6 +37,7 @@ last bit into the next session if something runs over.
 **Week 5**
 - [x] Build evaluation dataset — `eval/dataset.json`: 97 labeled ground-truth examples (55 meaningful / 42 not) across 8 realistic domains (GitHub releases, pricing, security advisories, API docs, job listings, blog, status pages, general). Checked our own Cosmos history first - only 8 real diffs existed (rest pruned by the 10-per-watch cap) and all 8 turned out to be 100% GitHub nav-boilerplate with zero lines showing the actual release change, so using them as ground truth would have been circular (testing the classifier against its own past guesses). Went fully authored instead, each example labeled by reading the diff text alone, with similar-looking meaningful/not-meaningful pairs per domain so the eval tests judgment at the boundary, not just obvious cases. Reviewed and approved by the user before being locked in.
 - [x] Run evaluation — `eval/WatchThisForMe.Evaluation`: a console project that runs the real `IChangeClassifier` against every example in the dataset and reports precision/recall/F1/per-domain accuracy/misclassified list. Baseline: 96.9% accuracy, 96.4% precision, 98.2% recall - all 3 misses genuinely instructive (a C# signature type-vs-name misread, prose misread as a type change, and a vulnerability-reporting *process* change misread as a new vulnerability). Added two targeted instructions to `OpenAiChangeClassifier` addressing the first and third; re-ran: 99.0% accuracy, 98.2% precision, 100% recall, 1 remaining miss acknowledged as a genuinely ambiguous ground-truth label (not pursued further to avoid overfitting the prompt to one debatable example) - stopped here per the user's call. Results saved to `eval/results.json`.
+- [x] Observability — OpenTelemetry tracing + metrics in the Api project: ASP.NET Core/HttpClient auto-instrumentation (captures every outbound call - OpenAI, GitHub, the watched page, Cosmos - for free) plus a custom `WatchThisForMe` ActivitySource/Meter for business-level spans. `WatchCheckService` wraps each run in a `WatchCheck` root span (tagged watch id/execution id/attempt number) with child spans per pipeline step (fetch/diff/embed/classify/save), each timed via both span duration and a step-duration histogram; `OpenAiResponsesClient`/`OpenAiEmbeddingGenerator` parse OpenAI's real `usage` block into token-count tags and a counter. On failure the span gets Error status + the real exception recorded, and a failures counter increments. Exports to console in Development (no live Azure resource yet) and to Application Insights once a connection string exists - ready for Friday's deploy. Verified live: a real check showed the full nested trace with real token counts (1683 input/54 output) and real per-step latencies; a forced failure against an unreachable source showed Error status, the real exception + stack trace, and the failure counter incrementing.
 
 ---
 
@@ -196,7 +197,7 @@ Goal: prove it actually works, and make it deployable. Don't skip this week.
 |---|---|---|---|---|
 | Nov 2 | Mon | 2h | Build evaluation dataset | [x] |
 | Nov 3 | Tue | 3h | Run evaluation | [x] |
-| Nov 4 | Wed | 3h | Observability | [ ] |
+| Nov 4 | Wed | 3h | Observability | [x] |
 | Nov 5 | Thu | 3h | Security | [ ] |
 | Nov 6 | Fri | 3h | CI/CD + deploy | [ ] |
 

@@ -141,6 +141,18 @@ This "measure, fix something specific, measure again" loop is the honest
 way to improve an AI feature — not guessing at prompt wording and hoping,
 but finding the actual cases it gets wrong and addressing those specifically.
 
+**Observability (added Week 5)** — up to now, the only way to know what
+happened during a check was scrolling console log text. Now every check
+produces a "trace": a single record of the whole run, broken into the
+steps it actually went through (fetch the page → diff it → ask the AI to
+embed and classify it → save the result), each one timed. You can see
+exactly how long each step took, how many OpenAI tokens the classification
+call actually used, and — if something failed — the real error message
+and where in the pipeline it happened, instead of just "something broke."
+Locally this prints to the console; once deployed, it flows into Azure's
+Application Insights instead, so the same visibility works in production
+without extra code.
+
 ## How to see the shape of the whole system
 
 A visual class diagram of the current architecture was published as a
