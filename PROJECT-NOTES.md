@@ -114,6 +114,35 @@ the system stops trying it automatically and flags it clearly as needing
 attention, rather than quietly failing forever in the background. You can
 tell it to try again once you've fixed the underlying problem.
 
+**Evaluation (added Week 5)** — until now, "the classifier works" meant
+"it gave sensible answers on the few examples we tried by hand." That's
+not evidence. So we built an answer key: 97 example changes, each labeled
+by a human as meaningful or not (`eval/dataset.json`), deliberately
+including tricky look-alikes — a typo fix sitting right next to a real
+breaking change. A small separate program (`eval/WatchThisForMe.Evaluation`)
+runs the real classifier against every example and scores it: *precision*
+(when it says "meaningful," how often is it right?) and *recall* (of the
+truly meaningful changes, how many did it catch?). The first run missed 3;
+two of those revealed real blind spots (confusing a parameter's type with
+its name, and treating a change to *how* to report vulnerabilities as a new
+vulnerability), and two targeted prompt fixes closed them. The last miss
+was left alone on purpose — it's debatable even to a human, and bending
+the prompt around one arguable label would be overfitting. Re-running this
+after any prompt change now tells you whether you made things better or
+worse, instead of guessing.
+
+**Observability (added Week 5)** — logs tell you *that* something
+happened; tracing tells you *where the time went and where it broke*. Every
+watch check now produces a trace: one parent "WatchCheck" step with a child
+step for each stage (fetch, diff, classify, embed, save), each timed, and
+every outbound call (OpenAI, GitHub, the watched page) captured
+automatically. Alongside that, the system counts things worth watching over
+time: OpenAI tokens used (which is what costs money), how long each stage
+takes, and how many checks fail per watch. This uses OpenTelemetry, an
+industry-standard format, so the same data prints to the console on your
+machine today and flows into Azure Application Insights once deployed —
+no code change needed, just a connection string.
+
 ## How to see the shape of the whole system
 
 A visual class diagram of the current architecture was published as a
@@ -123,6 +152,7 @@ ask for a refreshed one if it's been a while since new pieces were added.
 ## What's not built yet
 
 No actual notification delivery yet (email/Slack — the setting exists,
-nothing sends yet), and nothing is deployed anywhere outside this machine.
+nothing sends yet), secrets still live in local config rather than Key Vault,
+and nothing is deployed anywhere outside this machine.
 See
 `DAILY-PLAN.md` for exactly what's next.

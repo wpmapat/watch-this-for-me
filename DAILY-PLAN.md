@@ -17,13 +17,14 @@ last bit into the next session if something runs over.
 
 ## Current Status
 
-- **Active week:** Week 5 — Evaluation + productionization (not yet started)
-- **Active branch:** `master` (no Week 5 branch cut yet)
-- **Last updated:** 2026-10-30
+- **Active week:** Week 5 — Evaluation + productionization (Mon–Wed done; Security next)
+- **Active branch:** `feature/week5-evaluation-production`
+- **Last updated:** 2026-11-12
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 - **Week 2 status:** Complete and merged to `master` (PR #3)
 - **Week 3 status:** Complete and merged to `master` (PR #4)
 - **Week 4 status:** Complete and merged to `master` (PR #5)
+- **Week 5 status:** In progress — Mon–Wed committed on branch, Thu–Fri remaining
 
 ### Done so far
 **Week 1** — GitHub repo, solution scaffold, `Watch` domain model, Cosmos DB storage, Watch CRUD API, web page connector, observation storage + change detection, scheduler, NL→watch via OpenAI, basic Blazor UI. (Full detail in the Week 1 section below.)
@@ -33,6 +34,8 @@ last bit into the next session if something runs over.
 **Week 3** — Own MCP server (`get_web_page`, `get_previous_observation`, `save_observation`) plus GitHub tools (`get_github_release`, `get_github_issues`); an agent investigation loop that decides on its own which tools to call (capped at 5); grounded notification generation that can only cite evidence actually gathered during investigation; proved end-to-end against a real GitHub repo watch, fixing a real null-reference bug along the way. (Full detail in the Week 3 section below.)
 
 **Week 4** — Vector store + embeddings (local/in-process cosine similarity, not Azure AI Search); RAG retrieval feeding similar past observations into classification/investigation for judgment consistency (not a dedup filter); a user interest profile that colors explanations without overriding each watch's own criteria; retries/timeouts on all outbound HTTP calls via `Microsoft.Extensions.Http.Resilience`; per-watch idempotency locking; execution state tracking and automatic dead-lettering after 3 consecutive failures. (Full detail in the Week 4 section below.)
+
+**Week 5 (in progress)** — A 97-example hand-labeled ground-truth dataset (`eval/dataset.json`, authored rather than pulled from Cosmos because the real history was too thin and too uniform to measure anything); an evaluation runner (`eval/WatchThisForMe.Evaluation`) that scores the real classifier — baseline 96.9% accuracy, tuned with two targeted prompt instructions to 99.0% accuracy / 98.2% precision / 100% recall, with the one remaining miss (`docs-06`) deliberately left alone as genuinely ambiguous; OpenTelemetry tracing + metrics across fetch → diff → classify → embed → save, including real OpenAI token counts and failure counts, exporting to console locally and ready for Application Insights once deployed. (Full detail in the Week 5 section below.)
 
 ---
 
@@ -190,9 +193,9 @@ Goal: prove it actually works, and make it deployable. Don't skip this week.
 
 | Date | Day | Hrs | Focus | Status |
 |---|---|---|---|---|
-| Nov 2 | Mon | 2h | Build evaluation dataset | [ ] |
-| Nov 3 | Tue | 3h | Run evaluation | [ ] |
-| Nov 4 | Wed | 3h | Observability | [ ] |
+| Nov 2 | Mon | 2h | Build evaluation dataset | [x] |
+| Nov 3 | Tue | 3h | Run evaluation | [x] |
+| Nov 4 | Wed | 3h | Observability | [x] |
 | Nov 5 | Thu | 3h | Security | [ ] |
 | Nov 6 | Fri | 3h | CI/CD + deploy | [ ] |
 
