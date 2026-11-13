@@ -143,6 +143,42 @@ industry-standard format, so the same data prints to the console on your
 machine today and flows into Azure Application Insights once deployed —
 no code change needed, just a connection string.
 
+**Security (added Week 5)** — three separate locks, each closing a
+different door.
+
+*Who can use it (Entra ID sign-in).* Before this, anyone who could reach
+the Api could create watches or trigger investigations — and every one of
+those spends your OpenAI money. Now the web UI makes you sign in with a
+Microsoft account from your own Entra tenant, and passes a token proving
+who you are along to the Api, which rejects any request without one. The
+Api locks *every* endpoint by default rather than one at a time, so a new
+endpoint added later can't be accidentally left open.
+
+*Where secrets live (Key Vault).* The OpenAI key currently sits in .NET
+user-secrets on your machine — fine locally, but there's no such thing on
+a server. In Azure, secrets will live in Key Vault, a locked safe the app
+reads from at startup. The neat part: none of the code that *uses* the
+OpenAI key changed. .NET reads settings from a stack of sources (appsettings
+file, user-secrets, environment, Key Vault...), so Key Vault just becomes
+one more layer on top.
+
+*How the app proves who it is (Managed Identity).* Even a Key Vault needs
+a key to open it — which would just move the problem. Managed Identity
+solves that: Azure gives the running app its own identity, and you grant
+*that identity* permission to read the vault and the database. No password
+exists anywhere to leak. The same goes for Cosmos DB: in Azure the app
+connects with its identity instead of an account key. One catch learned
+along the way: identity-based access to Cosmos only covers reading and
+writing data, not creating databases or containers — so in Azure those get
+created by the deployment script, and the app's startup "create if missing"
+step only runs against the local emulator.
+
+*The safety rule tying it together.* On your machine, with none of this
+configured, everything still works anonymously exactly as before (with a
+loud warning in the log). But anywhere other than local development, a
+missing sign-in setting makes the app *refuse to start* — a forgotten
+setting can never quietly mean "let everyone in."
+
 ## How to see the shape of the whole system
 
 A visual class diagram of the current architecture was published as a
@@ -152,7 +188,9 @@ ask for a refreshed one if it's been a while since new pieces were added.
 ## What's not built yet
 
 No actual notification delivery yet (email/Slack — the setting exists,
-nothing sends yet), secrets still live in local config rather than Key Vault,
-and nothing is deployed anywhere outside this machine.
+nothing sends yet), and nothing is deployed anywhere outside this machine —
+the Key Vault, Managed Identity and Entra sign-in code is built and switches
+on by configuration, but isn't proven against real Azure resources until
+they're created during deployment.
 See
 `DAILY-PLAN.md` for exactly what's next.

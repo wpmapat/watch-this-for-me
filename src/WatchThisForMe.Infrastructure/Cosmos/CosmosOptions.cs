@@ -4,7 +4,14 @@ public class CosmosOptions
 {
     public const string SectionName = "CosmosDb";
 
-    public required string ConnectionString { get; set; }
+    // Key-based access - used locally against the emulator. Leave empty in Azure.
+    public string? ConnectionString { get; set; }
+
+    // Identity-based access - used in Azure, where the app authenticates with its managed identity
+    // instead of a key. Only consulted when ConnectionString is empty.
+    public string? AccountEndpoint { get; set; }
+
+    public bool UsesIdentity => string.IsNullOrWhiteSpace(ConnectionString);
 
     public string DatabaseName { get; set; } = "WatchThisForMe";
 

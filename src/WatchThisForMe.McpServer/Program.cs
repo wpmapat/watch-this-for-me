@@ -3,10 +3,14 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using WatchThisForMe.Infrastructure.Cosmos;
 using WatchThisForMe.Infrastructure.GitHub;
+using WatchThisForMe.Infrastructure.Security;
 using WatchThisForMe.Infrastructure.Sources;
 using WatchThisForMe.McpServer.Tools;
 
 var builder = Host.CreateApplicationBuilder(args);
+
+// Same secret source as the Api (e.g. GitHub:Token from Key Vault in Azure); a no-op locally.
+builder.Configuration.AddKeyVaultIfConfigured();
 
 // MCP's stdio transport uses stdout exclusively for protocol messages, so all
 // logging must go to stderr instead.

@@ -4,7 +4,7 @@
 @using System.Text.Json
 @using System.Text.Json.Serialization
 @using WatchThisForMe.Core.Watches
-@inject IHttpClientFactory HttpClientFactory
+@inject ApiClient Api
 
 <PageTitle>Watches</PageTitle>
 
@@ -82,7 +82,7 @@ else
 
     private async Task LoadWatchesAsync()
     {
-        var client = HttpClientFactory.CreateClient("Api");
+        var client = await Api.CreateAsync();
         watches = await client.GetFromJsonAsync<List<Watch>>("api/watches", JsonOptions) ?? [];
     }
 
@@ -98,7 +98,7 @@ else
 
         try
         {
-            var client = HttpClientFactory.CreateClient("Api");
+            var client = await Api.CreateAsync();
             var response = await client.PostAsJsonAsync("api/watches/from-natural-language", new { request = naturalLanguageRequest });
 
             if (response.IsSuccessStatusCode)
@@ -119,7 +119,7 @@ else
 
     private async Task DeleteWatch(string id)
     {
-        var client = HttpClientFactory.CreateClient("Api");
+        var client = await Api.CreateAsync();
         await client.DeleteAsync($"api/watches/{id}");
         await LoadWatchesAsync();
     }
