@@ -1,5 +1,6 @@
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
+using WatchThisForMe.Infrastructure.Ai;
 using Xunit;
 
 namespace WatchThisForMe.Tests;
@@ -8,38 +9,10 @@ namespace WatchThisForMe.Tests;
 // and spawns the built WatchThisForMe.McpServer as a real subprocess over stdio.
 public class McpServerTests
 {
-    private static string McpServerDirectory
-    {
-        get
-        {
-            var directory = new DirectoryInfo(AppContext.BaseDirectory);
-            while (directory is not null && directory.Name != "WatchThisForMe")
-            {
-                directory = directory.Parent;
-            }
-
-            if (directory is null)
-            {
-                throw new InvalidOperationException("Could not locate the repository root from the test output directory.");
-            }
-
-            return Path.Combine(directory.FullName, "src", "WatchThisForMe.McpServer", "bin", "Debug", "net10.0");
-        }
-    }
-
     private static async Task<McpClient> ConnectAsync()
     {
-        var serverDirectory = McpServerDirectory;
-        var transport = new StdioClientTransport(new StdioClientTransportOptions
-        {
-            Name = "WatchThisForMe.McpServer",
-            Command = "dotnet",
-            Arguments = [Path.Combine(serverDirectory, "WatchThisForMe.McpServer.dll")],
-            WorkingDirectory = serverDirectory,
-            InheritEnvironmentVariables = true,
-            EnvironmentVariables = new Dictionary<string, string?> { ["DOTNET_ENVIRONMENT"] = "Development" }
-        });
-
+        // Same launch logic as the real investigation agent; Development so it uses the emulator settings.
+        var transport = new StdioClientTransport(McpServerLocator.CreateTransportOptions("Development"));
         return await McpClient.CreateAsync(transport);
     }
 

@@ -24,4 +24,17 @@
     <ProjectReference Include="..\WatchThisForMe.Infrastructure\WatchThisForMe.Infrastructure.csproj" />
   </ItemGroup>
 
+  <!-- The investigation agent launches the MCP server as a subprocess, so a published Api must carry it along.
+       It goes in its own "mcp" subfolder (with its own deps/runtimeconfig/appsettings) rather than mixed into
+       the Api's files; McpServerLocator looks there first. -->
+  <Target Name="PublishMcpServer" AfterTargets="Publish">
+    <!-- Restore separately (with a fresh session id) so Publish evaluates against the restored assets. -->
+    <MSBuild Projects="..\WatchThisForMe.McpServer\WatchThisForMe.McpServer.csproj"
+             Targets="Restore"
+             Properties="MSBuildRestoreSessionId=$([System.Guid]::NewGuid())" />
+    <MSBuild Projects="..\WatchThisForMe.McpServer\WatchThisForMe.McpServer.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);PublishDir=$([System.IO.Path]::GetFullPath('$(PublishDir)'))mcp\" />
+  </Target>
+
 </Project>
