@@ -8,12 +8,33 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.6.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.7" />
+    <PackageReference Include="Microsoft.Identity.Web" Version="4.18.0" />
+    <!-- Direct pin overriding the transitive 2.0.0 from Microsoft.AspNetCore.OpenApi (GHSA-v5pm-xwqc-g5wc, fixed in 2.7.5). -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.13.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.20.1" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.20.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.20.1" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.20.1" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\WatchThisForMe.Core\WatchThisForMe.Core.csproj" />
     <ProjectReference Include="..\WatchThisForMe.Infrastructure\WatchThisForMe.Infrastructure.csproj" />
   </ItemGroup>
+
+  <!-- The investigation agent launches the MCP server as a subprocess, so a published Api must carry it along.
+       It goes in its own "mcp" subfolder (with its own deps/runtimeconfig/appsettings) rather than mixed into
+       the Api's files; McpServerLocator looks there first. -->
+  <Target Name="PublishMcpServer" AfterTargets="Publish">
+    <!-- Restore separately (with a fresh session id) so Publish evaluates against the restored assets. -->
+    <MSBuild Projects="..\WatchThisForMe.McpServer\WatchThisForMe.McpServer.csproj"
+             Targets="Restore"
+             Properties="MSBuildRestoreSessionId=$([System.Guid]::NewGuid())" />
+    <MSBuild Projects="..\WatchThisForMe.McpServer\WatchThisForMe.McpServer.csproj"
+             Targets="Publish"
+             Properties="Configuration=$(Configuration);PublishDir=$([System.IO.Path]::GetFullPath('$(PublishDir)'))mcp\" />
+  </Target>
 
 </Project>

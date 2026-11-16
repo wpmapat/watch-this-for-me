@@ -7,7 +7,12 @@ using WatchThisForMe.Core.Observations;
 
 namespace WatchThisForMe.Infrastructure.Ai;
 
-public class OpenAiInvestigationAgent(HttpClient httpClient, OpenAiOptions options, ILogger<OpenAiInvestigationAgent> logger)
+public class OpenAiInvestigationAgent(
+    HttpClient httpClient,
+    OpenAiOptions options,
+    ILogger<OpenAiInvestigationAgent> logger,
+    string environmentName,
+    string? mcpServerDirectory = null)
     : IInvestigationAgent, IAsyncDisposable
 {
     // Caps how many tool calls one investigation can make before being forced to conclude,
@@ -273,16 +278,8 @@ public class OpenAiInvestigationAgent(HttpClient httpClient, OpenAiOptions optio
         {
             if (_mcpClient is null)
             {
-                var serverDirectory = McpServerLocator.FindExecutableDirectory();
-                var transport = new StdioClientTransport(new StdioClientTransportOptions
-                {
-                    Name = "WatchThisForMe.McpServer",
-                    Command = "dotnet",
-                    Arguments = [Path.Combine(serverDirectory, "WatchThisForMe.McpServer.dll")],
-                    WorkingDirectory = serverDirectory,
-                    InheritEnvironmentVariables = true,
-                    EnvironmentVariables = new Dictionary<string, string?> { ["DOTNET_ENVIRONMENT"] = "Development" }
-                });
+                var transport = new StdioClientTransport(
+                    McpServerLocator.CreateTransportOptions(environmentName, mcpServerDirectory));
 
                 _mcpClient = await McpClient.CreateAsync(transport, cancellationToken: cancellationToken);
             }

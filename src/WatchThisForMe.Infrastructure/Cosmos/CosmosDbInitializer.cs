@@ -9,6 +9,14 @@ public class CosmosDbInitializer(CosmosClient client, IOptions<CosmosOptions> op
 
     public async Task InitializeAsync(CancellationToken cancellationToken = default)
     {
+        // Identity-based (Entra) access to Cosmos only covers data - reading and writing items. Creating
+        // databases and containers is a management operation it doesn't permit, so in Azure they're
+        // provisioned by the deployment (Bicep) instead, and this only runs against the emulator.
+        if (_options.UsesIdentity)
+        {
+            return;
+        }
+
         var database = await client.CreateDatabaseIfNotExistsAsync(_options.DatabaseName, cancellationToken: cancellationToken);
 
         await database.Database.CreateContainerIfNotExistsAsync(

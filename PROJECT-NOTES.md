@@ -114,44 +114,70 @@ the system stops trying it automatically and flags it clearly as needing
 attention, rather than quietly failing forever in the background. You can
 tell it to try again once you've fixed the underlying problem.
 
-**Evaluation dataset (added Week 5)** — up to now, every AI feature was
-checked by trying it once or twice and eyeballing whether the answer looked
-right. That proves a feature *works*, but not how *good* it is overall. This
-week starts building an actual measurement: a set of real example changes,
-each with a correct answer decided independently by a human (read the diff,
-decide "meaningful or not," without looking at what the AI said) — the
-answer key. Next, the real classifier gets run against every example in
-that set, and its answers get compared to the human answers to produce real
-numbers: how often it correctly flags things that matter (recall), and how
-often it wrongly flags things that don't (precision). That's `eval/dataset.json`
-and `eval/README.md` — 97 labeled examples, deliberately a mix of meaningful
-and not, covering several different kinds of watched sources.
+**Evaluation (added Week 5)** — until now, "the classifier works" meant
+"it gave sensible answers on the few examples we tried by hand." That's
+not evidence. So we built an answer key: 97 example changes, each labeled
+by a human as meaningful or not (`eval/dataset.json`), deliberately
+including tricky look-alikes — a typo fix sitting right next to a real
+breaking change. A small separate program (`eval/WatchThisForMe.Evaluation`)
+runs the real classifier against every example and scores it: *precision*
+(when it says "meaningful," how often is it right?) and *recall* (of the
+truly meaningful changes, how many did it catch?). The first run missed 3;
+two of those revealed real blind spots (confusing a parameter's type with
+its name, and treating a change to *how* to report vulnerabilities as a new
+vulnerability), and two targeted prompt fixes closed them. The last miss
+was left alone on purpose — it's debatable even to a human, and bending
+the prompt around one arguable label would be overfitting. Re-running this
+after any prompt change now tells you whether you made things better or
+worse, instead of guessing.
 
-**Running the evaluation (added Week 5)** — `eval/WatchThisForMe.Evaluation`
-actually does the measurement described above: it runs the real classifier
-against all 97 examples and reports the real numbers. First run came back
-at 96.9% accuracy with 3 wrong answers — each one genuinely informative
-rather than random noise (e.g. it mistook a harmless documentation
-rewording for a real code change). Those specific patterns were added as
-explicit guidance to the classifier's prompt, and a second run came back at
-99.0% accuracy, catching every single actually-meaningful change (100%
-recall) with only one remaining miss — which, on inspection, turned out to
-be a genuinely debatable example rather than a clear classifier mistake.
-This "measure, fix something specific, measure again" loop is the honest
-way to improve an AI feature — not guessing at prompt wording and hoping,
-but finding the actual cases it gets wrong and addressing those specifically.
+**Observability (added Week 5)** — logs tell you *that* something
+happened; tracing tells you *where the time went and where it broke*. Every
+watch check now produces a trace: one parent "WatchCheck" step with a child
+step for each stage (fetch, diff, classify, embed, save), each timed, and
+every outbound call (OpenAI, GitHub, the watched page) captured
+automatically. Alongside that, the system counts things worth watching over
+time: OpenAI tokens used (which is what costs money), how long each stage
+takes, and how many checks fail per watch. This uses OpenTelemetry, an
+industry-standard format, so the same data prints to the console on your
+machine today and flows into Azure Application Insights once deployed —
+no code change needed, just a connection string.
 
-**Observability (added Week 5)** — up to now, the only way to know what
-happened during a check was scrolling console log text. Now every check
-produces a "trace": a single record of the whole run, broken into the
-steps it actually went through (fetch the page → diff it → ask the AI to
-embed and classify it → save the result), each one timed. You can see
-exactly how long each step took, how many OpenAI tokens the classification
-call actually used, and — if something failed — the real error message
-and where in the pipeline it happened, instead of just "something broke."
-Locally this prints to the console; once deployed, it flows into Azure's
-Application Insights instead, so the same visibility works in production
-without extra code.
+**Security (added Week 5)** — three separate locks, each closing a
+different door.
+
+*Who can use it (Entra ID sign-in).* Before this, anyone who could reach
+the Api could create watches or trigger investigations — and every one of
+those spends your OpenAI money. Now the web UI makes you sign in with a
+Microsoft account from your own Entra tenant, and passes a token proving
+who you are along to the Api, which rejects any request without one. The
+Api locks *every* endpoint by default rather than one at a time, so a new
+endpoint added later can't be accidentally left open.
+
+*Where secrets live (Key Vault).* The OpenAI key currently sits in .NET
+user-secrets on your machine — fine locally, but there's no such thing on
+a server. In Azure, secrets will live in Key Vault, a locked safe the app
+reads from at startup. The neat part: none of the code that *uses* the
+OpenAI key changed. .NET reads settings from a stack of sources (appsettings
+file, user-secrets, environment, Key Vault...), so Key Vault just becomes
+one more layer on top.
+
+*How the app proves who it is (Managed Identity).* Even a Key Vault needs
+a key to open it — which would just move the problem. Managed Identity
+solves that: Azure gives the running app its own identity, and you grant
+*that identity* permission to read the vault and the database. No password
+exists anywhere to leak. The same goes for Cosmos DB: in Azure the app
+connects with its identity instead of an account key. One catch learned
+along the way: identity-based access to Cosmos only covers reading and
+writing data, not creating databases or containers — so in Azure those get
+created by the deployment script, and the app's startup "create if missing"
+step only runs against the local emulator.
+
+*The safety rule tying it together.* On your machine, with none of this
+configured, everything still works anonymously exactly as before (with a
+loud warning in the log). But anywhere other than local development, a
+missing sign-in setting makes the app *refuse to start* — a forgotten
+setting can never quietly mean "let everyone in."
 
 ## How to see the shape of the whole system
 
@@ -162,6 +188,9 @@ ask for a refreshed one if it's been a while since new pieces were added.
 ## What's not built yet
 
 No actual notification delivery yet (email/Slack — the setting exists,
-nothing sends yet), and nothing is deployed anywhere outside this machine.
+nothing sends yet), and nothing is deployed anywhere outside this machine —
+the Key Vault, Managed Identity and Entra sign-in code is built and switches
+on by configuration, but isn't proven against real Azure resources until
+they're created during deployment.
 See
 `DAILY-PLAN.md` for exactly what's next.

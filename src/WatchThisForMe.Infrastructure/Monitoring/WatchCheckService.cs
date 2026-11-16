@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using WatchThisForMe.Core.Executions;
 using WatchThisForMe.Core.Observations;
@@ -7,6 +8,7 @@ using WatchThisForMe.Core.Sources;
 using WatchThisForMe.Core.Watches;
 using WatchThisForMe.Infrastructure.Diffing;
 using WatchThisForMe.Infrastructure.Embeddings;
+using WatchThisForMe.Infrastructure.Observability;
 
 namespace WatchThisForMe.Infrastructure.Monitoring;
 
@@ -71,6 +73,13 @@ public class WatchCheckService(
         };
         await executionRepository.CreateAsync(execution, cancellationToken);
 
+        // Root span for the whole run - every step below (fetch/classify/embed/save) becomes
+        // a child span nested under this one, so a single trace shows the full pipeline.
+        using var activity = Telemetry.ActivitySource.StartActivity("WatchCheck");
+        activity?.SetTag("watch.id", watchId);
+        activity?.SetTag("execution.id", execution.Id);
+        activity?.SetTag("execution.attempt_number", execution.AttemptNumber);
+
         try
         {
             var result = await RunCheckAsync(watch, watchId, cancellationToken);
@@ -79,6 +88,7 @@ public class WatchCheckService(
             execution.CompletedAt = DateTimeOffset.UtcNow;
             await executionRepository.UpdateAsync(execution, cancellationToken);
 
+            activity?.SetStatus(ActivityStatusCode.Ok);
             return result;
         }
         catch (Exception ex)
@@ -87,6 +97,10 @@ public class WatchCheckService(
             execution.CompletedAt = DateTimeOffset.UtcNow;
             execution.ErrorMessage = ex.Message;
             await executionRepository.UpdateAsync(execution, cancellationToken);
+
+            activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+            activity?.AddException(ex);
+            Telemetry.CheckFailures.Add(1, new KeyValuePair<string, object?>("watch.id", watchId));
 
             if (execution.AttemptNumber >= DeadLetterThreshold)
             {
@@ -119,7 +133,7 @@ public class WatchCheckService(
 
     private async Task<Observation?> RunCheckAsync(Watch watch, string watchId, CancellationToken cancellationToken)
     {
-        var snapshot = await sourceFetcher.FetchAsync(watch.Source, cancellationToken);
+        var snapshot = await TracedStepAsync("fetch", () => sourceFetcher.FetchAsync(watch.Source, cancellationToken));
         var previous = await observationRepository.GetLatestAsync(watchId, cancellationToken);
         var changed = previous is null || previous.ContentHash != snapshot.ContentHash;
 
@@ -143,7 +157,7 @@ public class WatchCheckService(
             // though the model declares it non-nullable - `required` only checked at write time.
             DiffSummary = string.IsNullOrEmpty(previous?.NormalizedContent)
                 ? null
-                : TextDiffer.Summarize(previous.NormalizedContent, snapshot.NormalizedContent)
+                : TracedStep("diff", () => TextDiffer.Summarize(previous.NormalizedContent, snapshot.NormalizedContent))
         };
 
         if (!string.IsNullOrEmpty(observation.DiffSummary))
@@ -151,13 +165,13 @@ public class WatchCheckService(
             // Query embedding is of the raw diff, not a classification summary - we don't have
             // this change's own summary yet, that's the whole point of asking "have I seen
             // something like this before" ahead of classifying it.
-            var queryEmbedding = await embeddingGenerator.GenerateAsync(observation.DiffSummary, cancellationToken);
+            var queryEmbedding = await TracedStepAsync("embed_diff", () => embeddingGenerator.GenerateAsync(observation.DiffSummary, cancellationToken));
             var history = await observationRepository.ListAsync(watchId, MaxObservationsPerWatch, cancellationToken);
             var similarPast = EmbeddingSimilarity.FindTopMatches(queryEmbedding, history, MaxSimilarPastMatches);
             var interestProfile = await interestProfileRepository.GetAsync(cancellationToken);
 
-            var classification = await changeClassifier.ClassifyAsync(
-                observation.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, interestProfile.Interests, cancellationToken);
+            var classification = await TracedStepAsync("classify", () => changeClassifier.ClassifyAsync(
+                observation.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, interestProfile.Interests, cancellationToken));
             observation.Meaningful = classification.Meaningful;
             observation.Category = classification.Category;
             observation.Confidence = classification.Confidence;
@@ -165,10 +179,10 @@ public class WatchCheckService(
 
             // Embed the summary, not the raw diff - it's the compact, semantic statement of
             // what happened, which is what the similarity search matches against.
-            observation.Embedding = await embeddingGenerator.GenerateAsync(classification.Summary, cancellationToken);
+            observation.Embedding = await TracedStepAsync("embed_summary", () => embeddingGenerator.GenerateAsync(classification.Summary, cancellationToken));
         }
 
-        var created = await observationRepository.CreateAsync(observation, cancellationToken);
+        var created = await TracedStepAsync("save", () => observationRepository.CreateAsync(observation, cancellationToken));
         await PruneOldObservationsAsync(watchId, cancellationToken);
 
         return created;
@@ -181,6 +195,37 @@ public class WatchCheckService(
         foreach (var stale in all.Skip(MaxObservationsPerWatch))
         {
             await observationRepository.DeleteAsync(stale.Id, watchId, cancellationToken);
+        }
+    }
+
+    // Wraps one pipeline step in both a trace span (for inspecting a single run) and a
+    // duration metric (for aggregate latency across many runs) - the two serve different
+    // observability questions, so both are recorded rather than picking just one.
+    private static async Task<T> TracedStepAsync<T>(string stepName, Func<Task<T>> step)
+    {
+        using var activity = Telemetry.ActivitySource.StartActivity(stepName);
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            return await step();
+        }
+        finally
+        {
+            Telemetry.StepDurationMs.Record(stopwatch.Elapsed.TotalMilliseconds, new KeyValuePair<string, object?>("step", stepName));
+        }
+    }
+
+    private static T TracedStep<T>(string stepName, Func<T> step)
+    {
+        using var activity = Telemetry.ActivitySource.StartActivity(stepName);
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            return step();
+        }
+        finally
+        {
+            Telemetry.StepDurationMs.Record(stopwatch.Elapsed.TotalMilliseconds, new KeyValuePair<string, object?>("step", stepName));
         }
     }
 }

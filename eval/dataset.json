@@ -1,0 +1,972 @@
+[
+  {
+    "id": "gh-release-01",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ Released v3.2.0 - tagged and published today.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_release",
+    "rationale": "A brand new version was tagged and published - exactly what the criteria asks for."
+  },
+  {
+    "id": "gh-release-02",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ v4.0.0-rc.1 is now available for early testing.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_release",
+    "rationale": "A new release candidate tag is still a new release event, even if pre-release."
+  },
+  {
+    "id": "gh-release-03",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ Tag v2.8.14 published with the September patch set.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_release",
+    "rationale": "A new tag was published - matches the criteria directly."
+  },
+  {
+    "id": "gh-release-04",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ New release: v5.1.0, now includes ARM64 builds for the first time.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_release",
+    "rationale": "New version tag plus a genuinely new capability (ARM64 builds)."
+  },
+  {
+    "id": "gh-release-05",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ v1.9.0 tagged. First release under the new LTS support policy.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_release",
+    "rationale": "New tag, and the LTS policy change is itself notable context for users."
+  },
+  {
+    "id": "gh-release-06",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ Published v6.0.0-preview.3 ahead of the GA release next month.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_release",
+    "rationale": "A new preview tag was published - still a release event worth surfacing."
+  },
+  {
+    "id": "gh-release-07",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "- Install instructions: `dotnet tool install mytool`\n+ Install instructions: `dotnet tool install --global mytool`",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Just a documentation clarification on an already-known release, not a new release/breaking change/security fix."
+  },
+  {
+    "id": "gh-release-08",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "- Fixed a typo in the v3.1.0 release notes heading.\n+ Fixed a typo in the v3.1.0 release notes heading (spelling corrected).",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "A cosmetic text fix to existing notes, no new version/change/security content."
+  },
+  {
+    "id": "gh-release-09",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "- Thanks to all 42 contributors for this release!\n+ Thanks to all 45 contributors for this release!",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Contributor count bump has no functional relevance to the stated criteria."
+  },
+  {
+    "id": "gh-release-10",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "- Release notes formatted as a bulleted list.\n+ Release notes reformatted as a numbered list for clarity.",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Pure formatting change, no content change."
+  },
+  {
+    "id": "gh-release-11",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "- Release date: March the 3rd.\n+ Release date: March 3rd.",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Wording-only correction, same date, same release."
+  },
+  {
+    "id": "gh-release-12",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "- See CONTRIBUTING.md for guidelines.\n+ See CONTRIBUTING.md for contribution guidelines.",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Trivial rewording of an existing sentence."
+  },
+  {
+    "id": "gh-release-13",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ BREAKING: removed the deprecated `LegacyParser` class entirely in this release.",
+    "expectedMeaningful": true,
+    "expectedCategory": "breaking_change",
+    "rationale": "Explicit removal of a public class is a breaking change for anyone still using it."
+  },
+  {
+    "id": "gh-release-14",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ BREAKING CHANGE: minimum supported runtime is now .NET 9; .NET 6/7/8 are no longer supported starting this version.",
+    "expectedMeaningful": true,
+    "expectedCategory": "breaking_change",
+    "rationale": "Dropping support for older runtimes will break consumers still targeting them."
+  },
+  {
+    "id": "gh-release-15",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ The `--legacy-mode` CLI flag has been removed without replacement as of this release.",
+    "expectedMeaningful": true,
+    "expectedCategory": "breaking_change",
+    "rationale": "Removing a CLI flag with no replacement breaks any script relying on it."
+  },
+  {
+    "id": "gh-release-16",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "- public void Configure(Options opts)\n+ public void Configure(ConfigurationOptions opts)",
+    "expectedMeaningful": true,
+    "expectedCategory": "breaking_change",
+    "rationale": "A public method's parameter type changed - this breaks existing callers at compile time."
+  },
+  {
+    "id": "gh-release-17",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ Default serialization format changed from XML to JSON; existing consumers relying on XML output must opt in explicitly.",
+    "expectedMeaningful": true,
+    "expectedCategory": "breaking_change",
+    "rationale": "A default behavior change that silently alters output format for existing consumers."
+  },
+  {
+    "id": "gh-release-18",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ Package renamed from `Acme.Utils` to `Acme.Core.Utils` - existing `using` statements and NuGet references must be updated.",
+    "expectedMeaningful": true,
+    "expectedCategory": "breaking_change",
+    "rationale": "A package rename requires every consumer to update references - clearly breaking."
+  },
+  {
+    "id": "gh-release-19",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ SECURITY: patches CVE-2026-13452, a remote code execution vulnerability in the request parser. Upgrade immediately.",
+    "expectedMeaningful": true,
+    "expectedCategory": "security_fix",
+    "rationale": "A named CVE fix for an RCE vulnerability is exactly the kind of security fix the criteria asks about."
+  },
+  {
+    "id": "gh-release-20",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ Fixes a critical authentication bypass affecting all versions prior to 4.2.1.",
+    "expectedMeaningful": true,
+    "expectedCategory": "security_fix",
+    "rationale": "An authentication bypass fix is a critical, user-impacting security fix."
+  },
+  {
+    "id": "gh-release-21",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ Addresses a path traversal vulnerability in the file upload handler (CVE-2026-20991).",
+    "expectedMeaningful": true,
+    "expectedCategory": "security_fix",
+    "rationale": "Named CVE, concrete vulnerability class, directly matches the security-fix criteria."
+  },
+  {
+    "id": "gh-release-22",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ Rotates and invalidates the default signing key shipped in earlier releases due to a disclosed key-leak incident.",
+    "expectedMeaningful": true,
+    "expectedCategory": "security_fix",
+    "rationale": "A key-leak remediation is a significant security event users need to act on."
+  },
+  {
+    "id": "gh-release-23",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ Fixes a denial-of-service vulnerability triggerable via malformed multipart requests.",
+    "expectedMeaningful": true,
+    "expectedCategory": "security_fix",
+    "rationale": "A DoS vulnerability fix is a real security fix worth flagging."
+  },
+  {
+    "id": "gh-release-24",
+    "domain": "github-releases",
+    "watchContext": "Open source .NET-style release notes watch",
+    "meaningfulChangeCriteria": "New release tags, breaking changes, or security fixes mentioned in release notes",
+    "diffSummary": "+ Patches an SSRF vulnerability in the webhook delivery subsystem (CVE-2026-18877).",
+    "expectedMeaningful": true,
+    "expectedCategory": "security_fix",
+    "rationale": "Named CVE for an SSRF fix - clearly a security fix per the criteria."
+  },
+  {
+    "id": "pricing-01",
+    "domain": "pricing-page",
+    "watchContext": "SaaS product pricing page watch",
+    "meaningfulChangeCriteria": "Changes to pricing, plan limits, or what's included in each tier",
+    "diffSummary": "- Pro plan: $29/month\n+ Pro plan: $39/month",
+    "expectedMeaningful": true,
+    "expectedCategory": "pricing_change",
+    "rationale": "A direct price increase on a named plan is exactly what the criteria is watching for."
+  },
+  {
+    "id": "pricing-02",
+    "domain": "pricing-page",
+    "watchContext": "SaaS product pricing page watch",
+    "meaningfulChangeCriteria": "Changes to pricing, plan limits, or what's included in each tier",
+    "diffSummary": "- Free tier: up to 1,000 API calls/month\n+ Free tier: up to 500 API calls/month",
+    "expectedMeaningful": true,
+    "expectedCategory": "pricing_change",
+    "rationale": "A cut to a free-tier usage limit materially affects users on that plan."
+  },
+  {
+    "id": "pricing-03",
+    "domain": "pricing-page",
+    "watchContext": "SaaS product pricing page watch",
+    "meaningfulChangeCriteria": "Changes to pricing, plan limits, or what's included in each tier",
+    "diffSummary": "+ New Enterprise tier introduced at $499/month with dedicated support.",
+    "expectedMeaningful": true,
+    "expectedCategory": "pricing_change",
+    "rationale": "A brand new pricing tier is a direct pricing-page change."
+  },
+  {
+    "id": "pricing-04",
+    "domain": "pricing-page",
+    "watchContext": "SaaS product pricing page watch",
+    "meaningfulChangeCriteria": "Changes to pricing, plan limits, or what's included in each tier",
+    "diffSummary": "- Team plan includes 10 seats\n+ Team plan includes 5 seats",
+    "expectedMeaningful": true,
+    "expectedCategory": "pricing_change",
+    "rationale": "Halving the included seat count for the same price is a real change to what's included."
+  },
+  {
+    "id": "pricing-05",
+    "domain": "pricing-page",
+    "watchContext": "SaaS product pricing page watch",
+    "meaningfulChangeCriteria": "Changes to pricing, plan limits, or what's included in each tier",
+    "diffSummary": "+ Annual billing discount increased from 10% to 20%.",
+    "expectedMeaningful": true,
+    "expectedCategory": "pricing_change",
+    "rationale": "A discount change directly affects what customers pay."
+  },
+  {
+    "id": "pricing-06",
+    "domain": "pricing-page",
+    "watchContext": "SaaS product pricing page watch",
+    "meaningfulChangeCriteria": "Changes to pricing, plan limits, or what's included in each tier",
+    "diffSummary": "- Storage included: 100GB\n+ Storage included: 50GB",
+    "expectedMeaningful": true,
+    "expectedCategory": "pricing_change",
+    "rationale": "Cutting the included storage allowance in half is a real change to what's included in the plan."
+  },
+  {
+    "id": "pricing-07",
+    "domain": "pricing-page",
+    "watchContext": "SaaS product pricing page watch",
+    "meaningfulChangeCriteria": "Changes to pricing, plan limits, or what's included in each tier",
+    "diffSummary": "- Simple, transparent pricing for teams of all sizes.\n+ Simple, transparent pricing for teams of every size.",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Marketing tagline rewording, no actual price or limit changed."
+  },
+  {
+    "id": "pricing-08",
+    "domain": "pricing-page",
+    "watchContext": "SaaS product pricing page watch",
+    "meaningfulChangeCriteria": "Changes to pricing, plan limits, or what's included in each tier",
+    "diffSummary": "- All plans include 24/7 email support.\n+ All plans include around-the-clock email support.",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Same support offering, just rephrased."
+  },
+  {
+    "id": "pricing-09",
+    "domain": "pricing-page",
+    "watchContext": "SaaS product pricing page watch",
+    "meaningfulChangeCriteria": "Changes to pricing, plan limits, or what's included in each tier",
+    "diffSummary": "- Prices shown in USD.\n+ All prices shown in USD.",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Trivial wording tweak, no pricing content changed."
+  },
+  {
+    "id": "pricing-10",
+    "domain": "pricing-page",
+    "watchContext": "SaaS product pricing page watch",
+    "meaningfulChangeCriteria": "Changes to pricing, plan limits, or what's included in each tier",
+    "diffSummary": "- Cancel anytime, no questions asked.\n+ Cancel anytime - no questions asked.",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Punctuation-only change."
+  },
+  {
+    "id": "pricing-11",
+    "domain": "pricing-page",
+    "watchContext": "SaaS product pricing page watch",
+    "meaningfulChangeCriteria": "Changes to pricing, plan limits, or what's included in each tier",
+    "diffSummary": "- Need a custom plan? Contact sales.\n+ Need something custom? Contact our sales team.",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Phrasing change only, no actual plan or price content."
+  },
+  {
+    "id": "pricing-12",
+    "domain": "pricing-page",
+    "watchContext": "SaaS product pricing page watch",
+    "meaningfulChangeCriteria": "Changes to pricing, plan limits, or what's included in each tier",
+    "diffSummary": "- FAQ\n+ Frequently Asked Questions",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Just a heading label change."
+  },
+  {
+    "id": "sec-01",
+    "domain": "security-advisory",
+    "watchContext": "Security advisory feed watch",
+    "meaningfulChangeCriteria": "New published vulnerabilities or patches affecting this product",
+    "diffSummary": "+ New advisory: CVE-2026-55210, critical severity, affects versions 2.0-2.4. Patch available in 2.4.1.",
+    "expectedMeaningful": true,
+    "expectedCategory": "security_fix",
+    "rationale": "A brand new critical-severity advisory with a patch is squarely what this watch exists for."
+  },
+  {
+    "id": "sec-02",
+    "domain": "security-advisory",
+    "watchContext": "Security advisory feed watch",
+    "meaningfulChangeCriteria": "New published vulnerabilities or patches affecting this product",
+    "diffSummary": "+ Advisory GHSA-abc1-defg-2345 published: moderate severity cross-site scripting issue in the admin dashboard.",
+    "expectedMeaningful": true,
+    "expectedCategory": "security_fix",
+    "rationale": "A newly published advisory, even moderate severity, is new information users need."
+  },
+  {
+    "id": "sec-03",
+    "domain": "security-advisory",
+    "watchContext": "Security advisory feed watch",
+    "meaningfulChangeCriteria": "New published vulnerabilities or patches affecting this product",
+    "diffSummary": "+ Advisory updated: CVE-2026-11023 severity raised from Medium to Critical after new exploit details emerged.",
+    "expectedMeaningful": true,
+    "expectedCategory": "security_fix",
+    "rationale": "A severity escalation on an existing advisory is new, actionable information."
+  },
+  {
+    "id": "sec-04",
+    "domain": "security-advisory",
+    "watchContext": "Security advisory feed watch",
+    "meaningfulChangeCriteria": "New published vulnerabilities or patches affecting this product",
+    "diffSummary": "+ New advisory: unauthenticated API endpoint exposed internal configuration data. Fixed in version 5.3.2.",
+    "expectedMeaningful": true,
+    "expectedCategory": "security_fix",
+    "rationale": "A new, concrete vulnerability disclosure with a fix version - directly relevant."
+  },
+  {
+    "id": "sec-05",
+    "domain": "security-advisory",
+    "watchContext": "Security advisory feed watch",
+    "meaningfulChangeCriteria": "New published vulnerabilities or patches affecting this product",
+    "diffSummary": "+ Advisory published for a supply-chain compromise in a transitive dependency (CVE-2026-77810).",
+    "expectedMeaningful": true,
+    "expectedCategory": "security_fix",
+    "rationale": "A supply-chain compromise advisory is high-impact, new security information."
+  },
+  {
+    "id": "sec-06",
+    "domain": "security-advisory",
+    "watchContext": "Security advisory feed watch",
+    "meaningfulChangeCriteria": "New published vulnerabilities or patches affecting this product",
+    "diffSummary": "+ New critical advisory: default admin credentials shipped in container images prior to v1.0.9.",
+    "expectedMeaningful": true,
+    "expectedCategory": "security_fix",
+    "rationale": "A default-credentials disclosure is a serious new security advisory."
+  },
+  {
+    "id": "sec-07",
+    "domain": "security-advisory",
+    "watchContext": "Security advisory feed watch",
+    "meaningfulChangeCriteria": "New published vulnerabilities or patches affecting this product",
+    "diffSummary": "- Last updated: October 2026\n+ Last updated: November 2026",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "Only the page's refresh timestamp changed - no new advisory content."
+  },
+  {
+    "id": "sec-08",
+    "domain": "security-advisory",
+    "watchContext": "Security advisory feed watch",
+    "meaningfulChangeCriteria": "New published vulnerabilities or patches affecting this product",
+    "diffSummary": "- Advisories are sorted by severity.\n+ Advisories are sorted by publish date by default; sort by severity available via filter.",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "A UI/sorting behavior note, not a new vulnerability disclosure."
+  },
+  {
+    "id": "sec-09",
+    "domain": "security-advisory",
+    "watchContext": "Security advisory feed watch",
+    "meaningfulChangeCriteria": "New published vulnerabilities or patches affecting this product",
+    "diffSummary": "- Report a vulnerability via security@example.com\n+ Report a vulnerability via our new bug bounty portal",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "A process change for reporting, not a new disclosed vulnerability itself."
+  },
+  {
+    "id": "sec-10",
+    "domain": "security-advisory",
+    "watchContext": "Security advisory feed watch",
+    "meaningfulChangeCriteria": "New published vulnerabilities or patches affecting this product",
+    "diffSummary": "- 12 advisories listed, newest first.\n+ 12 advisories listed, grouped by severity.",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "Same 12 advisories, just redisplayed - no new content."
+  },
+  {
+    "id": "docs-01",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "+ The `/v1/orders` endpoint is deprecated and will return 410 Gone starting next month; use `/v2/orders` instead.",
+    "expectedMeaningful": true,
+    "expectedCategory": "breaking_change",
+    "rationale": "A deprecation with a hard removal date directly matches the breaking-change criteria."
+  },
+  {
+    "id": "docs-02",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "- `timeout` parameter accepts milliseconds\n+ `timeout` parameter now accepts seconds",
+    "expectedMeaningful": true,
+    "expectedCategory": "breaking_change",
+    "rationale": "A silent unit change on an existing parameter will break every existing caller's timeout values."
+  },
+  {
+    "id": "docs-03",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "+ Webhooks now require a valid signature header; unsigned requests will be rejected starting in 30 days.",
+    "expectedMeaningful": true,
+    "expectedCategory": "breaking_change",
+    "rationale": "A new mandatory requirement with an enforcement date is a genuine breaking change."
+  },
+  {
+    "id": "docs-04",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "+ The `include_deleted` query parameter has been removed; deleted records are never returned regardless of this flag.",
+    "expectedMeaningful": true,
+    "expectedCategory": "breaking_change",
+    "rationale": "Removing a parameter that callers may depend on is a breaking change."
+  },
+  {
+    "id": "docs-05",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "+ Rate limits reduced from 1000 req/min to 200 req/min for all free-tier API keys effective immediately.",
+    "expectedMeaningful": true,
+    "expectedCategory": "breaking_change",
+    "rationale": "A large, immediate rate-limit cut can break existing integrations relying on the old limit."
+  },
+  {
+    "id": "docs-06",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "- Returns a list of users.\n+ Returns an array of user objects.",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Describes the same existing behavior in different words - nothing actually changed."
+  },
+  {
+    "id": "docs-07",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "- Example response below:\n+ See the example response below:",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Trivial phrasing change with no content impact."
+  },
+  {
+    "id": "docs-08",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "- Authentication is required for all endpoints.\n+ All endpoints require authentication.",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Same sentence reordered, no actual authentication requirement changed."
+  },
+  {
+    "id": "docs-09",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "- Note: this field is optional.\n+ Note: this field is optional and defaults to null.",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "A clarifying detail added to docs, but the field's actual behavior is unchanged."
+  },
+  {
+    "id": "docs-10",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "- Need help? See our FAQ.\n+ Need help? Check out our FAQ page.",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Pure wording change."
+  },
+  {
+    "id": "docs-11",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "- API Reference\n+ API Reference Documentation",
+    "expectedMeaningful": false,
+    "expectedCategory": "minor_wording",
+    "rationale": "Heading rename only."
+  },
+  {
+    "id": "docs-12",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "+ New endpoint `/v2/bulk-export` added, allowing export of up to 10,000 records in a single request.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_feature",
+    "rationale": "A genuinely new, usable endpoint is new API surface worth knowing about."
+  },
+  {
+    "id": "docs-13",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "+ Added support for `?fields=` query parameter to select which fields are returned in the response.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_feature",
+    "rationale": "A new, non-breaking capability that developers can start using."
+  },
+  {
+    "id": "docs-14",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "+ Webhooks now support a new `order.refunded` event type.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_feature",
+    "rationale": "A new webhook event type is new functionality integrators would want to know about."
+  },
+  {
+    "id": "docs-15",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "+ Added OAuth 2.0 device-code flow support for CLI and headless integrations.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_feature",
+    "rationale": "A new supported auth flow is a meaningful new feature for integrators."
+  },
+  {
+    "id": "docs-16",
+    "domain": "api-docs",
+    "watchContext": "API documentation / changelog watch",
+    "meaningfulChangeCriteria": "New breaking API changes, deprecations, or newly added features",
+    "diffSummary": "+ New `idempotency_key` header support added for safe request retries.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_feature",
+    "rationale": "A new reliability feature that changes how callers can safely use the API."
+  },
+  {
+    "id": "jobs-01",
+    "domain": "job-listings",
+    "watchContext": "Careers page watch (Backend/Staff Engineer roles)",
+    "meaningfulChangeCriteria": "New job openings for Senior Backend Engineer or Staff Engineer roles",
+    "diffSummary": "+ New opening: Senior Backend Engineer - Platform Team (Remote, posted today).",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_posting",
+    "rationale": "A new posting that exactly matches the watched role title."
+  },
+  {
+    "id": "jobs-02",
+    "domain": "job-listings",
+    "watchContext": "Careers page watch (Backend/Staff Engineer roles)",
+    "meaningfulChangeCriteria": "New job openings for Senior Backend Engineer or Staff Engineer roles",
+    "diffSummary": "+ New opening: Staff Engineer, Infrastructure (Hybrid - NYC).",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_posting",
+    "rationale": "Matches the Staff Engineer role explicitly named in the criteria."
+  },
+  {
+    "id": "jobs-03",
+    "domain": "job-listings",
+    "watchContext": "Careers page watch (Backend/Staff Engineer roles)",
+    "meaningfulChangeCriteria": "New job openings for Senior Backend Engineer or Staff Engineer roles",
+    "diffSummary": "+ New opening: Senior Backend Engineer, Payments (Remote, US only).",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_posting",
+    "rationale": "A new Senior Backend Engineer posting matches the criteria directly."
+  },
+  {
+    "id": "jobs-04",
+    "domain": "job-listings",
+    "watchContext": "Careers page watch (Backend/Staff Engineer roles)",
+    "meaningfulChangeCriteria": "New job openings for Senior Backend Engineer or Staff Engineer roles",
+    "diffSummary": "+ New opening: Staff Software Engineer - Distributed Systems.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_posting",
+    "rationale": "A Staff-level engineering posting matches the watched role."
+  },
+  {
+    "id": "jobs-05",
+    "domain": "job-listings",
+    "watchContext": "Careers page watch (Backend/Staff Engineer roles)",
+    "meaningfulChangeCriteria": "New job openings for Senior Backend Engineer or Staff Engineer roles",
+    "diffSummary": "+ New opening: Senior Backend Engineer II - Growth Team.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_posting",
+    "rationale": "Still a Senior Backend Engineer posting despite the leveled title."
+  },
+  {
+    "id": "jobs-06",
+    "domain": "job-listings",
+    "watchContext": "Careers page watch (Backend/Staff Engineer roles)",
+    "meaningfulChangeCriteria": "New job openings for Senior Backend Engineer or Staff Engineer roles",
+    "diffSummary": "+ New opening: Marketing Intern (Summer 2027).",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "An intern marketing role has nothing to do with the watched engineering roles."
+  },
+  {
+    "id": "jobs-07",
+    "domain": "job-listings",
+    "watchContext": "Careers page watch (Backend/Staff Engineer roles)",
+    "meaningfulChangeCriteria": "New job openings for Senior Backend Engineer or Staff Engineer roles",
+    "diffSummary": "+ New opening: Executive Assistant to the CEO.",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "Not an engineering role at all - outside the stated criteria."
+  },
+  {
+    "id": "jobs-08",
+    "domain": "job-listings",
+    "watchContext": "Careers page watch (Backend/Staff Engineer roles)",
+    "meaningfulChangeCriteria": "New job openings for Senior Backend Engineer or Staff Engineer roles",
+    "diffSummary": "- Office Manager posting open.\n+ Office Manager posting removed.",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "A removed, unrelated role closing is not relevant to the watched roles."
+  },
+  {
+    "id": "jobs-09",
+    "domain": "job-listings",
+    "watchContext": "Careers page watch (Backend/Staff Engineer roles)",
+    "meaningfulChangeCriteria": "New job openings for Senior Backend Engineer or Staff Engineer roles",
+    "diffSummary": "+ New opening: Social Media Coordinator.",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "Unrelated role - outside engineering entirely."
+  },
+  {
+    "id": "jobs-10",
+    "domain": "job-listings",
+    "watchContext": "Careers page watch (Backend/Staff Engineer roles)",
+    "meaningfulChangeCriteria": "New job openings for Senior Backend Engineer or Staff Engineer roles",
+    "diffSummary": "+ New opening: Junior Frontend Developer (React).",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "Wrong seniority level and wrong discipline (frontend, not backend) - doesn't match the criteria."
+  },
+  {
+    "id": "blog-01",
+    "domain": "company-blog",
+    "watchContext": "Company blog watch",
+    "meaningfulChangeCriteria": "Announcements about new product launches or service outages",
+    "diffSummary": "+ New post: \"Introducing our new real-time analytics dashboard, available today for all customers.\"",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_announcement",
+    "rationale": "A new product launch announcement directly matches the criteria."
+  },
+  {
+    "id": "blog-02",
+    "domain": "company-blog",
+    "watchContext": "Company blog watch",
+    "meaningfulChangeCriteria": "Announcements about new product launches or service outages",
+    "diffSummary": "+ New post: \"We experienced a 45-minute outage affecting checkout between 2:00-2:45 PM UTC. Root cause and remediation below.\"",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_announcement",
+    "rationale": "A real outage postmortem is exactly what this watch is looking for."
+  },
+  {
+    "id": "blog-03",
+    "domain": "company-blog",
+    "watchContext": "Company blog watch",
+    "meaningfulChangeCriteria": "Announcements about new product launches or service outages",
+    "diffSummary": "+ New post: \"Launching our new mobile app for iOS and Android starting this week.\"",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_announcement",
+    "rationale": "A new product launch announcement."
+  },
+  {
+    "id": "blog-04",
+    "domain": "company-blog",
+    "watchContext": "Company blog watch",
+    "meaningfulChangeCriteria": "Announcements about new product launches or service outages",
+    "diffSummary": "+ New post: \"Service disruption affecting EU customers resolved; full postmortem to follow.\"",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_announcement",
+    "rationale": "An outage/disruption announcement matches the criteria directly."
+  },
+  {
+    "id": "blog-05",
+    "domain": "company-blog",
+    "watchContext": "Company blog watch",
+    "meaningfulChangeCriteria": "Announcements about new product launches or service outages",
+    "diffSummary": "+ New post: \"Announcing general availability of our new webhook delivery system.\"",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_announcement",
+    "rationale": "A GA product launch announcement."
+  },
+  {
+    "id": "blog-06",
+    "domain": "company-blog",
+    "watchContext": "Company blog watch",
+    "meaningfulChangeCriteria": "Announcements about new product launches or service outages",
+    "diffSummary": "+ New post: \"Meet our summer interns - a look at this year's cohort.\"",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "A culture/team post, not a product launch or outage announcement."
+  },
+  {
+    "id": "blog-07",
+    "domain": "company-blog",
+    "watchContext": "Company blog watch",
+    "meaningfulChangeCriteria": "Announcements about new product launches or service outages",
+    "diffSummary": "+ New post: \"Our team volunteered at the local food bank last weekend.\"",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "Community/culture content, unrelated to the stated criteria."
+  },
+  {
+    "id": "blog-08",
+    "domain": "company-blog",
+    "watchContext": "Company blog watch",
+    "meaningfulChangeCriteria": "Announcements about new product launches or service outages",
+    "diffSummary": "+ New post: \"5 tips for staying productive while working from home.\"",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "Generic lifestyle content, not a launch or outage."
+  },
+  {
+    "id": "blog-09",
+    "domain": "company-blog",
+    "watchContext": "Company blog watch",
+    "meaningfulChangeCriteria": "Announcements about new product launches or service outages",
+    "diffSummary": "+ New post: \"Congratulations to our Employee of the Quarter!\"",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "Internal recognition post, not relevant to the criteria."
+  },
+  {
+    "id": "blog-10",
+    "domain": "company-blog",
+    "watchContext": "Company blog watch",
+    "meaningfulChangeCriteria": "Announcements about new product launches or service outages",
+    "diffSummary": "+ New post: \"Join us at next month's industry meetup - booth #42.\"",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "An event-promotion post, not a launch or outage announcement."
+  },
+  {
+    "id": "status-01",
+    "domain": "status-page",
+    "watchContext": "Service status page watch",
+    "meaningfulChangeCriteria": "New incidents or ongoing service outages",
+    "diffSummary": "+ New incident: Elevated error rates on the API, investigating. (Started 10 minutes ago)",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_incident",
+    "rationale": "A freshly opened incident is exactly what this watch exists to catch."
+  },
+  {
+    "id": "status-02",
+    "domain": "status-page",
+    "watchContext": "Service status page watch",
+    "meaningfulChangeCriteria": "New incidents or ongoing service outages",
+    "diffSummary": "+ New incident: Database connectivity issues affecting the EU region.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_incident",
+    "rationale": "A new, regionally-scoped incident."
+  },
+  {
+    "id": "status-03",
+    "domain": "status-page",
+    "watchContext": "Service status page watch",
+    "meaningfulChangeCriteria": "New incidents or ongoing service outages",
+    "diffSummary": "+ New incident: Email delivery delays of up to 2 hours.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_incident",
+    "rationale": "A new service degradation incident."
+  },
+  {
+    "id": "status-04",
+    "domain": "status-page",
+    "watchContext": "Service status page watch",
+    "meaningfulChangeCriteria": "New incidents or ongoing service outages",
+    "diffSummary": "+ New incident: Degraded performance on file uploads larger than 100MB.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_incident",
+    "rationale": "A new incident, even if scoped to a specific use case."
+  },
+  {
+    "id": "status-05",
+    "domain": "status-page",
+    "watchContext": "Service status page watch",
+    "meaningfulChangeCriteria": "New incidents or ongoing service outages",
+    "diffSummary": "+ New incident: Login failures for users with SSO enabled.",
+    "expectedMeaningful": true,
+    "expectedCategory": "new_incident",
+    "rationale": "A new incident affecting a meaningful subset of users."
+  },
+  {
+    "id": "status-06",
+    "domain": "status-page",
+    "watchContext": "Service status page watch",
+    "meaningfulChangeCriteria": "New incidents or ongoing service outages",
+    "diffSummary": "- Incident resolved 3 hours ago.\n+ Incident resolved 3 hours ago. All systems operational.",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "Same already-resolved incident, just a reassurance line appended - no new incident."
+  },
+  {
+    "id": "status-07",
+    "domain": "status-page",
+    "watchContext": "Service status page watch",
+    "meaningfulChangeCriteria": "New incidents or ongoing service outages",
+    "diffSummary": "- Status page last refreshed: 10:02 AM\n+ Status page last refreshed: 10:17 AM",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "Pure timestamp refresh, no incident content at all."
+  },
+  {
+    "id": "status-08",
+    "domain": "status-page",
+    "watchContext": "Service status page watch",
+    "meaningfulChangeCriteria": "New incidents or ongoing service outages",
+    "diffSummary": "- 99.98% uptime this month\n+ 99.97% uptime this month",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "A tiny uptime percentage fluctuation, not an active incident."
+  },
+  {
+    "id": "status-09",
+    "domain": "status-page",
+    "watchContext": "Service status page watch",
+    "meaningfulChangeCriteria": "New incidents or ongoing service outages",
+    "diffSummary": "- All systems operational.\n+ All systems operational.",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "Identical status text, purely a cosmetic re-render - no incident."
+  },
+  {
+    "id": "misc-01",
+    "domain": "general",
+    "watchContext": "Miscellaneous page watch (criteria varies per example)",
+    "meaningfulChangeCriteria": "New security vulnerabilities affecting this product",
+    "diffSummary": "+ Updated the footer copyright year from 2026 to 2027.",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "A copyright-year bump has nothing to do with security vulnerabilities."
+  },
+  {
+    "id": "misc-02",
+    "domain": "general",
+    "watchContext": "Miscellaneous page watch (criteria varies per example)",
+    "meaningfulChangeCriteria": "New product releases",
+    "diffSummary": "- Follow us on Twitter\n+ Follow us on X",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "A rebranded social media link label is not a product release."
+  },
+  {
+    "id": "misc-03",
+    "domain": "general",
+    "watchContext": "Miscellaneous page watch (criteria varies per example)",
+    "meaningfulChangeCriteria": "Changes to pricing",
+    "diffSummary": "+ Added a new customer testimonial to the homepage.",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "A testimonial addition has nothing to do with pricing."
+  },
+  {
+    "id": "misc-04",
+    "domain": "general",
+    "watchContext": "Miscellaneous page watch (criteria varies per example)",
+    "meaningfulChangeCriteria": "New job openings in Engineering",
+    "diffSummary": "+ Updated company mission statement wording on the About page.",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "A mission-statement edit is unrelated to job openings."
+  },
+  {
+    "id": "misc-05",
+    "domain": "general",
+    "watchContext": "Miscellaneous page watch (criteria varies per example)",
+    "meaningfulChangeCriteria": "Breaking API changes",
+    "diffSummary": "- Office location: 123 Main St\n+ Office location: 456 Market St",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "A physical office address change has no bearing on the API."
+  },
+  {
+    "id": "misc-06",
+    "domain": "general",
+    "watchContext": "Miscellaneous page watch (criteria varies per example)",
+    "meaningfulChangeCriteria": "New security advisories",
+    "diffSummary": "+ Refreshed the hero image on the homepage.",
+    "expectedMeaningful": false,
+    "expectedCategory": "unrelated",
+    "rationale": "A purely visual homepage change, unrelated to security advisories."
+  }
+]

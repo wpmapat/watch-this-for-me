@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UserSecretsId>c35fe433-fe0b-43df-b722-e69b06709803</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\WatchThisForMe.Infrastructure\WatchThisForMe.Infrastructure.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\dataset.json" Link="dataset.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>

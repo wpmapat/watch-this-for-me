@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Net.Http.Headers;
 using WatchThisForMe.Core.Observations;
@@ -43,7 +44,12 @@ public static class AiServiceCollectionExtensions
         {
             var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient("OpenAiInvestigation");
             var logger = sp.GetRequiredService<ILogger<OpenAiInvestigationAgent>>();
-            return new OpenAiInvestigationAgent(httpClient, options, logger);
+            // The MCP server subprocess runs in the same environment as this app (Development locally,
+            // Production in Azure). Hosts without an IHostEnvironment (e.g. the eval console) never
+            // investigate, so the fallback only needs to be safe, not useful.
+            var environmentName = sp.GetService<IHostEnvironment>()?.EnvironmentName ?? Environments.Production;
+            return new OpenAiInvestigationAgent(
+                httpClient, options, logger, environmentName, configuration["Mcp:ServerDirectory"]);
         });
 
         return services;

@@ -9,4 +9,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/WatchThisForMe.Tests/WatchThisForMe.Tests.csproj" />
   </Folder>
+  <Folder Name="/eval/">
+    <Project Path="eval/WatchThisForMe.Evaluation/WatchThisForMe.Evaluation.csproj" />
+  </Folder>
 </Solution>
