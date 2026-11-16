@@ -1,5 +1,7 @@
 # Watch This for Me
 
+[![CI](https://github.com/wpmapat/watch-this-for-me/actions/workflows/ci.yml/badge.svg)](https://github.com/wpmapat/watch-this-for-me/actions/workflows/ci.yml)
+
 **An AI agent that keeps watching things for you after you leave, and tells you only when something that matters to you changes.**
 
 You describe what you care about in plain English:

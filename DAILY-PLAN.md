@@ -17,13 +17,14 @@ last bit into the next session if something runs over.
 
 ## Current Status
 
-- **Active week:** Week 5 — Evaluation + productionization
-- **Active branch:** `feature/week5-evaluation-production`
+- **Active week:** Week 6 — Polish (Azure deploy deferred until just before interviews)
+- **Active branch:** none yet (next: `feature/week6-polish`)
 - **Last updated:** 2026-11-16
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 - **Week 2 status:** Complete and merged to `master` (PR #3)
 - **Week 3 status:** Complete and merged to `master` (PR #4)
 - **Week 4 status:** Complete and merged to `master` (PR #5)
+- **Week 5 status:** Merged to `master` (PR #6) — everything except the Azure deploy, which is deferred
 
 ### Done so far
 **Week 1** — GitHub repo, solution scaffold, `Watch` domain model, Cosmos DB storage, Watch CRUD API, web page connector, observation storage + change detection, scheduler, NL→watch via OpenAI, basic Blazor UI. (Full detail in the Week 1 section below.)
