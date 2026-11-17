@@ -9,10 +9,16 @@
 <PageTitle>Watches</PageTitle>
 
 <h1>My Watches</h1>
+<p class="text-muted mb-4">
+    Your agent checks each source on schedule and flags only the changes that need interpreting:
+    a new release, a security fix, an earnings announcement. It skips routine edits like a reworded
+    sentence or a new date in the footer.
+</p>
 
 <div class="mb-4">
     <label class="form-label">Describe what you want to watch</label>
-    <textarea class="form-control" rows="2" @bind="naturalLanguageRequest"></textarea>
+    <textarea class="form-control" rows="2" @bind="naturalLanguageRequest"
+              placeholder="e.g. Watch the dotnet/runtime releases and tell me only about breaking changes or security fixes"></textarea>
     <button class="btn btn-primary mt-2" @onclick="CreateFromNaturalLanguage" disabled="@isCreating">
         @(isCreating ? "Creating..." : "Create Watch")
     </button>
@@ -22,39 +28,78 @@
     }
 </div>
 
-@if (watches is null)
+@if (summaries is null)
 {
     <p>Loading...</p>
 }
-else if (watches.Count == 0)
+else if (summaries.Count == 0)
 {
-    <p>No watches yet. Create one above.</p>
+    <p class="text-muted">No watches yet. Describe one above to get started.</p>
 }
 else
 {
-    <table class="table">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <span class="text-muted small">@HealthCountsText()</span>
+        <button class="btn btn-sm btn-outline-secondary" @onclick="LoadSummariesAsync">Refresh</button>
+    </div>
+
+    <table class="table align-middle watch-table">
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Source</th>
-                <th>Type</th>
-                <th>Frequency</th>
-                <th>Status</th>
-                <th>Last Checked</th>
+                <th>Health</th>
+                <th>Watch</th>
+                <th>Checks</th>
+                <th>Last checked</th>
+                <th>Last important change</th>
                 <th></th>
             </tr>
         </thead>
         <tbody>
-            @foreach (var watch in watches)
+            @foreach (var summary in summaries)
             {
+                var watch = summary.Watch;
                 <tr>
-                    <td>@watch.Name</td>
-                    <td>@watch.Source</td>
-                    <td>@watch.SourceType</td>
-                    <td>@watch.CheckFrequency</td>
-                    <td>@watch.Status</td>
-                    <td>@(watch.LastCheckedAt?.ToLocalTime().ToString("g") ?? "Never")</td>
                     <td>
+                        <span class="health-badge @HealthCss(summary.Health)" title="@summary.LastError">
+                            @HealthIcon(summary.Health) @HealthLabel(summary.Health)
+                        </span>
+                        @if (summary.LastError is not null)
+                        {
+                            <div class="small text-danger text-truncate error-line" title="@summary.LastError">@summary.LastError</div>
+                        }
+                    </td>
+                    <td>
+                        <div class="fw-semibold">@watch.Name</div>
+                        <div class="small text-muted text-truncate source-line" title="@watch.Source">@watch.SourceType · @watch.Source</div>
+                    </td>
+                    <td class="text-nowrap">@FormatFrequency(watch.CheckFrequency)</td>
+                    <td class="text-nowrap" title="@watch.LastCheckedAt?.ToLocalTime().ToString("g")">
+                        @FormatRelative(watch.LastCheckedAt, "Never")
+                    </td>
+                    <td>
+                        @if (summary.LastImportantChangeAt is not null)
+                        {
+                            <div>
+                                @if (!string.IsNullOrEmpty(summary.LastImportantChangeCategory))
+                                {
+                                    <span class="badge text-bg-info me-1">@FormatCategory(summary.LastImportantChangeCategory)</span>
+                                }
+                                <span class="small text-muted">@FormatRelative(summary.LastImportantChangeAt, "")</span>
+                            </div>
+                            <div class="small change-summary" title="@summary.LastImportantChangeSummary">@summary.LastImportantChangeSummary</div>
+                        }
+                        else
+                        {
+                            <span class="small text-muted">
+                                @(summary.LastChangeAt is null ? "No changes yet" : "No important changes recently")
+                            </span>
+                        }
+                    </td>
+                    <td class="text-nowrap text-end">
+                        <button class="btn btn-sm btn-outline-primary" @onclick="() => CheckNow(watch.Id)"
+                                disabled="@(checkingIds.Contains(watch.Id) || watch.Status != WatchStatus.Active)">
+                            @(checkingIds.Contains(watch.Id) ? "Checking..." : "Check now")
+                        </button>
                         <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteWatch(watch.Id)">Delete</button>
                     </td>
                 </tr>
@@ -70,20 +115,21 @@ else
         Converters = { new JsonStringEnumConverter() }
     };
 
-    private List<Watch>? watches;
+    private List<WatchSummary>? summaries;
+    private readonly HashSet<string> checkingIds = [];
     private string naturalLanguageRequest = string.Empty;
     private bool isCreating;
     private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        await LoadWatchesAsync();
+        await LoadSummariesAsync();
     }
 
-    private async Task LoadWatchesAsync()
+    private async Task LoadSummariesAsync()
     {
         var client = await Api.CreateAsync();
-        watches = await client.GetFromJsonAsync<List<Watch>>("api/watches", JsonOptions) ?? [];
+        summaries = await client.GetFromJsonAsync<List<WatchSummary>>("api/watches/summaries", JsonOptions) ?? [];
     }
 
     private async Task CreateFromNaturalLanguage()
@@ -104,7 +150,7 @@ else
             if (response.IsSuccessStatusCode)
             {
                 naturalLanguageRequest = string.Empty;
-                await LoadWatchesAsync();
+                await LoadSummariesAsync();
             }
             else
             {
@@ -117,10 +163,97 @@ else
         }
     }
 
+    private async Task CheckNow(string id)
+    {
+        checkingIds.Add(id);
+        errorMessage = null;
+        try
+        {
+            var client = await Api.CreateAsync();
+            var response = await client.PostAsync($"api/watches/{id}/check", null);
+            if (!response.IsSuccessStatusCode)
+            {
+                // The failure itself is recorded as an execution, so the refreshed row shows the error.
+                errorMessage = $"Check failed ({(int)response.StatusCode}).";
+            }
+        }
+        finally
+        {
+            checkingIds.Remove(id);
+            await LoadSummariesAsync();
+        }
+    }
+
     private async Task DeleteWatch(string id)
     {
         var client = await Api.CreateAsync();
         await client.DeleteAsync($"api/watches/{id}");
-        await LoadWatchesAsync();
+        await LoadSummariesAsync();
+    }
+
+    private string HealthCountsText()
+    {
+        var healthy = summaries!.Count(s => s.Health == WatchHealth.Healthy);
+        var attention = summaries!.Count(s => s.Health is WatchHealth.NeedsAttention or WatchHealth.Stopped);
+        var text = $"{summaries!.Count} watches · {healthy} healthy";
+        return attention > 0 ? $"{text} · {attention} need attention" : text;
+    }
+
+    private static string HealthIcon(WatchHealth health) => health switch
+    {
+        WatchHealth.Healthy => "🟢",
+        WatchHealth.NeedsAttention => "🟡",
+        WatchHealth.Stopped => "🔴",
+        WatchHealth.Paused => "⏸",
+        _ => "⚪"
+    };
+
+    private static string HealthLabel(WatchHealth health) => health switch
+    {
+        WatchHealth.Healthy => "Healthy",
+        WatchHealth.NeedsAttention => "Needs attention",
+        WatchHealth.Stopped => "Stopped",
+        WatchHealth.Paused => "Paused",
+        _ => "Waiting for first check"
+    };
+
+    private static string HealthCss(WatchHealth health) => health switch
+    {
+        WatchHealth.Healthy => "health-ok",
+        WatchHealth.NeedsAttention => "health-warn",
+        WatchHealth.Stopped => "health-bad",
+        _ => "health-neutral"
+    };
+
+    private static string FormatFrequency(TimeSpan frequency) => frequency switch
+    {
+        { TotalDays: >= 1 } when frequency.TotalDays % 1 == 0 => frequency.TotalDays == 1 ? "Daily" : $"Every {frequency.TotalDays:0} days",
+        { TotalHours: >= 1 } when frequency.TotalHours % 1 == 0 => frequency.TotalHours == 1 ? "Hourly" : $"Every {frequency.TotalHours:0} hours",
+        _ => $"Every {frequency.TotalMinutes:0} min"
+    };
+
+    // Classifier categories are snake_case ("new_release") - show them as "New release".
+    private static string FormatCategory(string category)
+    {
+        var words = category.Replace('_', ' ').Trim();
+        return words.Length == 0 ? words : char.ToUpperInvariant(words[0]) + words[1..];
+    }
+
+    private static string FormatRelative(DateTimeOffset? when, string fallback)
+    {
+        if (when is null)
+        {
+            return fallback;
+        }
+
+        var ago = DateTimeOffset.UtcNow - when.Value;
+        return ago switch
+        {
+            { TotalMinutes: < 1 } => "just now",
+            { TotalHours: < 1 } => $"{(int)ago.TotalMinutes} min ago",
+            { TotalDays: < 1 } => $"{(int)ago.TotalHours} h ago",
+            { TotalDays: < 30 } => $"{(int)ago.TotalDays} d ago",
+            _ => when.Value.ToLocalTime().ToString("d")
+        };
     }
 }

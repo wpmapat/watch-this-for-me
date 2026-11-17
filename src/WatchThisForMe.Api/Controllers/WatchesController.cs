@@ -49,6 +49,46 @@ public class WatchesController(
         return Ok(watches);
     }
 
+    // Literal segment, so routing prefers it over the "{id}" template below.
+    [HttpGet("summaries")]
+    public async Task<ActionResult<IReadOnlyList<WatchSummary>>> ListSummaries(CancellationToken cancellationToken)
+    {
+        var watches = await repository.ListAsync(cancellationToken);
+
+        // Per-watch lookups run in parallel; each is a small single-partition query.
+        var summaries = await Task.WhenAll(watches.Select(async watch =>
+        {
+            // Two runs, not one: while a retry is in flight the latest run has no error yet,
+            // and the reason the watch needs attention is on the failed run before it.
+            var recentExecutionsTask = executionRepository.ListAsync(watch.Id, maxCount: 2, cancellationToken);
+            var observationsTask = observationRepository.ListAsync(watch.Id, cancellationToken: cancellationToken);
+            var recentExecutions = await recentExecutionsTask;
+            var latestExecution = recentExecutions.FirstOrDefault();
+            var observations = await observationsTask;
+            var health = WatchHealthEvaluator.Evaluate(watch.Status, latestExecution);
+
+            var lastImportant = observations
+                .Where(o => o.Meaningful == true)
+                .MaxBy(o => o.CheckedAt);
+
+            return new WatchSummary
+            {
+                Watch = watch,
+                Health = health,
+                LastError = health is WatchHealth.NeedsAttention or WatchHealth.Stopped
+                    ? recentExecutions.FirstOrDefault(e => e.Status == WatchExecutionStatus.Failed)?.ErrorMessage
+                    : null,
+                // The very first observation is a baseline with no diff - not a change from anything.
+                LastChangeAt = observations.Where(o => o.DiffSummary is not null).Select(o => (DateTimeOffset?)o.CheckedAt).Max(),
+                LastImportantChangeAt = lastImportant?.CheckedAt,
+                LastImportantChangeSummary = lastImportant?.ClassificationSummary,
+                LastImportantChangeCategory = lastImportant?.Category
+            };
+        }));
+
+        return Ok(summaries.OrderBy(s => s.Watch.Name, StringComparer.OrdinalIgnoreCase).ToList());
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<Watch>> Get(string id, CancellationToken cancellationToken)
     {

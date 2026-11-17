@@ -1,0 +1,27 @@
+.health-badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.health-ok { background: #e6f4ea; color: #1e6b34; }
+.health-warn { background: #fff4d6; color: #7a5600; }
+.health-bad { background: #fde8e8; color: #9b1c1c; }
+.health-neutral { background: #eef0f3; color: #4a5160; }
+
+.source-line,
+.error-line {
+    max-width: 22rem;
+}
+
+/* Show up to two lines of the AI's summary, full text on hover via the title attribute. */
+.change-summary {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 28rem;
+}

@@ -73,6 +73,11 @@ public class WatchCheckService(
         };
         await executionRepository.CreateAsync(execution, cancellationToken);
 
+        // Record the attempt before anything can fail, so the scheduler waits a full
+        // CheckFrequency before retrying instead of retrying on every tick.
+        watch.LastAttemptAt = execution.StartedAt;
+        await watchRepository.UpdateAsync(watch, cancellationToken);
+
         // Root span for the whole run - every step below (fetch/classify/embed/save) becomes
         // a child span nested under this one, so a single trace shows the full pipeline.
         using var activity = Telemetry.ActivitySource.StartActivity("WatchCheck");

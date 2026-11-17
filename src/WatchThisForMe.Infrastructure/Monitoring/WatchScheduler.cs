@@ -36,7 +36,7 @@ public class WatchScheduler(
 
         foreach (var watch in watches)
         {
-            if (watch.Status != WatchStatus.Active || !IsDue(watch))
+            if (watch.Status != WatchStatus.Active || !WatchSchedule.IsDue(watch, DateTimeOffset.UtcNow))
             {
                 continue;
             }
@@ -51,7 +51,4 @@ public class WatchScheduler(
             }
         }
     }
-
-    private static bool IsDue(Watch watch) =>
-        watch.LastCheckedAt is null || DateTimeOffset.UtcNow - watch.LastCheckedAt >= watch.CheckFrequency;
 }

@@ -3,5 +3,29 @@
 <PageTitle>Watch This for Me</PageTitle>
 
 <h1>Watch This for Me</h1>
+<p class="lead">An AI agent that keeps an eye on the things you care about, and tells you only when something changes that matters.</p>
 
-An AI-powered persistent monitoring agent.
+<div class="row g-4 my-2">
+    <div class="col-md-6">
+        <h5>What it does</h5>
+        <ul>
+            <li>You describe what to watch in plain English: a GitHub repo, a release notes page, a company's news page.</li>
+            <li>It checks the source on a schedule and spots what changed since last time.</li>
+            <li>AI reads each change and judges it against <em>your</em> rule, e.g. "only breaking changes or security fixes".</li>
+            <li>For important changes, it can investigate further and explain what happened, citing the evidence it found.</li>
+        </ul>
+    </div>
+    <div class="col-md-6">
+        <h5>What it's for, and what it isn't</h5>
+        <p>
+            It's built for changes that need <strong>interpreting</strong>: "is this new release relevant to me?",
+            "did this company announce something significant?" A plain text diff can't answer those questions.
+        </p>
+        <p class="text-muted">
+            It isn't a price or threshold alert. Rules like "tell me when a stock drops below $400" are better served
+            by a brokerage or monitoring app, which tracks exact numbers in real time.
+        </p>
+    </div>
+</div>
+
+<a class="btn btn-primary" href="watches">Go to my watches</a>

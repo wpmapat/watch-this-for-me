@@ -26,5 +26,10 @@ public class Watch
 
     public required DateTimeOffset CreatedAt { get; set; }
 
+    // Last time a check fetched the source successfully.
     public DateTimeOffset? LastCheckedAt { get; set; }
+
+    // Last time a check was attempted, whether or not it succeeded. Scheduling is based on this,
+    // so a failing watch is retried on its normal cadence rather than on every scheduler tick.
+    public DateTimeOffset? LastAttemptAt { get; set; }
 }
