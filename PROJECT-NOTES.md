@@ -278,6 +278,25 @@ out of this:
   scheduler logs it and simply tries again on its next round — with a test
   that proves it.
 
+**When a watched website stops responding, then comes back (Week 6)** —
+while a site is down, each check fails, the watch shows 🟡 with the
+reason, and it retries on its normal schedule. After 3 failures in a row
+(3 hours for an hourly watch) it's 🔴 Stopped. We saw this happen for
+real: "Broken Source Test 2" failed at 16:54, 17:55 and 18:55, then
+stopped.
+
+When the site comes back, the next check compares it against the **last
+snapshot saved before the outage** — so nothing is skipped, but
+everything that changed meanwhile arrives as *one* combined change (two
+releases during the outage = one alert mentioning both). Something
+published and then removed during the outage is never seen.
+
+A stopped watch used to stay stopped forever unless you sent a hand-written
+API request. Now stopped and paused watches have a **Resume** button, which
+switches the watch back on and checks it straight away. Resuming gives a
+**fresh set of 3 attempts** — otherwise the old failures would still count,
+and the very next hiccup would stop it again.
+
 ## How to see the shape of the whole system
 
 A visual class diagram of the current architecture was published as a
