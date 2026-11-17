@@ -252,6 +252,22 @@ real product.
 
   **Also Nov 17 — failure & load testing:** 19 fast in-memory tests for the check pipeline, dashboard rows and scheduler (fakes in `tests/.../Fakes/TestDoubles.cs`; 50 tests total). Load test (40 watches, every check a meaningful change, real OpenAI, separate Api + database): 0 failures, but only ~16 checks/min — sequential scheduler is the bottleneck (each watch checked every ~160s vs 60s target); dashboard up to 1.1s at 40 watches; no OpenAI rate limits, Cosmos emulator throttled. Api-down test led to: friendly "can't reach the monitoring service" banner on the Watches page, anonymous `/health` liveness endpoint, and a fix so a database error while the scheduler lists watches no longer shuts down the whole Api. Remaining known issues (AI outages count toward dead-lettering, sequential scheduler, dashboard over-reads, multi-instance duplicates, orphaned records on delete) deferred — candidates for Fri "Final polish".
 
+**Next session (Nov 18) — FIRST: fix the critical diff bug, then testing plan.**
+Found Nov 17 (see `TESTING.md`): the HTML cleanup flattens every real page onto one line,
+so every diff is "whole old page / whole new page", cut off at 4,000 characters — the AI
+never sees the actual change on real pages. Do this before the execution timeline, because
+the timeline will display the AI's reasoning.
+- [ ] Fix: keep line structure in `HtmlNormalizer` (line breaks at headings, paragraphs, list items, etc.)
+- [ ] End-to-end test: real-looking HTML → cleanup → diff → contains only the new release
+- [ ] Re-baseline existing watches so the format change doesn't cause one false alert each
+- [ ] Re-check the .NET releases watch: does the AI now see the real change?
+
+**Testing plan (after the fix; full detail in `TESTING.md`):**
+- [ ] Correctness/grounding — "canary" releases with unique words; small change on a big page, trivial change, look-alike change; 3 runs each; add real-page examples to the evaluation
+- [ ] Security — prompt injection via watched page text; SSRF (refuse `localhost`, private IPs, `169.254.169.254`) — must be fixed before deploying
+- [ ] Weird inputs — page over 2 MB, JavaScript-only page, non-English, PDF/image URL, redirect loop, slow page, nonsense watch request
+- [ ] Cost — worst-case AI calls/tokens per watch per day; minimum check frequency; daily AI budget
+
 **Tue Nov 10 — Execution history view.** Let a user see what the
 agent actually did, step by step.
 - Add a timeline view per watch: fetch → change detected → AI analysis → investigation → notification, with timestamps
