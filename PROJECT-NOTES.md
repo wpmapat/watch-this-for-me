@@ -179,6 +179,57 @@ loud warning in the log). But anywhere other than local development, a
 missing sign-in setting makes the app *refuse to start* — a forgotten
 setting can never quietly mean "let everyone in."
 
+**The dashboard and watch health (added Week 6)** — the watch list used
+to show only what you typed in when creating a watch. Now each row answers
+the two questions you'd actually ask at a glance: *is this watch working?*
+and *has it found anything?*
+
+*Health* comes from the record of each run (the "executions" added in
+Week 4): 🟢 Healthy if the last run worked, 🟡 Needs attention if it
+failed but will try again, 🔴 Stopped if it failed too many times in a row
+and was switched off, plus Paused and "Waiting for first check". When
+something's wrong, the actual error ("No such host is known") is shown
+right under the badge, so "needs attention" tells you *what* needs it.
+
+*Last important change* shows the most recent change the AI judged
+meaningful, with its category ("New release") and the AI's one-line
+summary. The server assembles all of this into one row per watch, so the
+page makes a single request instead of several per watch.
+
+*What the product is for.* The Home page now says it plainly: this is
+for changes that need **interpreting** ("is this release relevant to me?",
+"did this company announce something significant?"), not number alerts
+like "tell me when a stock drops below $400" — a brokerage app does those
+better. A useful line to have ready if an interviewer asks "could it watch
+stocks?".
+
+**A real bug found by testing failure on purpose (Week 6)** — to see the
+🟡 and 🔴 states, we created a watch pointing at a website that can't
+exist. It went from created to permanently Stopped in about 30 seconds,
+even though it was set to check hourly.
+
+*Why:* the scheduler decides a watch is "due" by looking at when it was
+last *successfully* checked. A failing watch never succeeds, so it looked
+overdue on every scheduler tick (every 10 seconds locally) and burned
+through its 3 allowed failures almost instantly.
+
+*Why it mattered:* this wasn't just about broken websites. Any brief
+hiccup — 30 seconds of dropped wifi, a site being down for a minute —
+would have permanently switched off **every** watch, including healthy
+ones, with nobody noticing until they checked the dashboard.
+
+*The fix:* each watch now also remembers when a check was last
+*attempted* (success or not), and the scheduler waits a full interval
+after any attempt. So an hourly watch now needs 3 hours of continuous
+failure before it's stopped, and a daily watch 3 days — which is what
+the 3-strikes rule was meant to mean. Verified live: a new broken watch
+was tried once and then left alone, instead of three times in 30 seconds.
+
+*The lesson:* the unit tests all passed before this fix — none of them
+tried "what if it keeps failing, over time?". Deliberately breaking
+something and watching what happens caught what testing the happy path
+never would.
+
 ## How to see the shape of the whole system
 
 A visual class diagram of the current architecture was published as a
