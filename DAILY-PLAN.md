@@ -18,8 +18,8 @@ last bit into the next session if something runs over.
 ## Current Status
 
 - **Active week:** Week 6 — Polish (Azure deploy deferred until just before interviews)
-- **Active branch:** none yet (next: `feature/week6-polish`)
-- **Last updated:** 2026-11-16
+- **Active branch:** `feature/week6-polish`
+- **Last updated:** 2026-11-17
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 - **Week 2 status:** Complete and merged to `master` (PR #3)
 - **Week 3 status:** Complete and merged to `master` (PR #4)
@@ -41,6 +41,9 @@ last bit into the next session if something runs over.
 - [x] Observability — OpenTelemetry tracing + metrics in the Api project: ASP.NET Core/HttpClient auto-instrumentation (captures every outbound call - OpenAI, GitHub, the watched page, Cosmos - for free) plus a custom `WatchThisForMe` ActivitySource/Meter for business-level spans. `WatchCheckService` wraps each run in a `WatchCheck` root span (tagged watch id/execution id/attempt number) with child spans per pipeline step (fetch/diff/embed/classify/save), each timed via both span duration and a step-duration histogram; `OpenAiResponsesClient`/`OpenAiEmbeddingGenerator` parse OpenAI's real `usage` block into token-count tags and a counter. On failure the span gets Error status + the real exception recorded, and a failures counter increments. Exports to console in Development (no live Azure resource yet) and to Application Insights once a connection string exists - ready for Friday's deploy. Verified live: a real check showed the full nested trace with real token counts (1683 input/54 output) and real per-step latencies; a forced failure against an unreachable source showed Error status, the real exception + stack trace, and the failure counter incrementing.
 - [x] Security — Three separate locks. *Entra ID sign-in:* the Web UI signs users in via `Microsoft.Identity.Web` and calls the Api with the user's access token through a new scoped `ApiClient` (scoped per Blazor circuit, because a `DelegatingHandler` on the named client can't see who's signed in); the Api requires an authenticated caller with the `access_as_user` scope on *every* endpoint via a fallback policy, so a controller added later is locked by default rather than open by omission. *Key Vault:* `AzureKeyVaultConfiguration` adds Key Vault as one more configuration layer when a vault URI is configured, so no code that reads the OpenAI key changed. *Managed Identity:* Cosmos connects with the app's own identity when `AccountEndpoint` is set instead of a connection string - no key exists to leak; since identity-based Cosmos access is data-plane only, database/container creation at startup now only runs against the emulator and must be done by the deployment script in Azure. Safety rule: with no Entra config both apps run anonymously in Development (with a loud warning) and *refuse to start* anywhere else. Verified locally in anonymous Development mode (Api returned watches without a token, Watches page loaded real data through `ApiClient`); the refuse-to-start rule also fired for real when the Api was accidentally launched as Production. Also fixed a pre-existing port mismatch (Web expected the Api on 5280, its launch profile uses 5003). The Azure-side paths are built but unproven until Friday's deploy creates the real resources.
 - [~] CI/CD + deploy — **CI done, deploy deliberately deferred** until just before interviews (avoids paying for idle Azure resources; keeps the live demo fresh). CI: `.github/workflows/ci.yml` builds the solution in Release and runs all 20 tests on every push/PR, with Microsoft's Linux Cosmos DB emulator as a Docker container so the Cosmos and MCP tests run too, and the workflow's own `GITHUB_TOKEN` passed as `GitHub:Token` so the GitHub tests aren't rate-limited. Passed first time (all 20). Prep for deploy, also done: the investigation agent located the MCP server by walking up to a folder literally named `WatchThisForMe` and hardcoding `bin/Debug`, and always ran it as Development - broken in CI (checked out as `watch-this-for-me`), in Release, and in Azure. `McpServerLocator` now checks an `Mcp:ServerDirectory` override, then an `mcp/` folder next to the app (publishing the Api now publishes the MCP server there), then the source tree found via `WatchThisForMe.slnx` in the app's own configuration; the subprocess runs in the host's environment. Verified by running a Release publish from outside the repo and completing a real investigation with MCP tool calls. Still to do at deploy time: Bicep, Entra app registrations, a manual first deploy, and the CD half of the pipeline.
+
+**Week 6** (in progress on `feature/week6-polish`)
+- [x] Dashboard UI polish — health badges, last important change per watch, Check now, product-purpose copy; plus a scheduler retry bug fix found while testing failure (details in the Week 6 section below)
 
 ---
 
@@ -233,7 +236,7 @@ Goal: make the existing product excellent — don't add new features.
 
 | Date | Day | Hrs | Focus | Status |
 |---|---|---|---|---|
-| Nov 9 | Mon | 2h | Dashboard UI polish | [ ] |
+| Nov 9 | Mon | 2h | Dashboard UI polish (done Nov 17) | [x] |
 | Nov 10 | Tue | 3h | Execution history view | [ ] |
 | Nov 11 | Wed | 3h | Prepare Demo 1 + Demo 2 | [ ] |
 | Nov 12 | Thu | 3h | Prepare Demo 3 | [ ] |
@@ -242,6 +245,8 @@ Goal: make the existing product excellent — don't add new features.
 **Mon Nov 9 — Dashboard UI polish.** Make the watch list look like a
 real product.
 - Add status indicators (🟢/🟡) and "last checked"/"last important change" summaries per watch
+
+  **Done (Nov 17):** Health badges (🟢 Healthy / 🟡 Needs attention / 🔴 Stopped / Paused / Waiting for first check) computed by `WatchHealthEvaluator` from watch status + latest run, with the failure reason shown under the badge. New `GET api/watches/summaries` assembles one row per watch (health, last error, last change, last important change with category + AI summary). Relative times, friendly frequencies, a Check now button, and copy on the Home and Watches pages explaining the product is for changes that need *interpreting*, not price/threshold alerts. **Bug found by deliberately testing failure:** the scheduler judged "due" by last *successful* check, so a failing watch was retried every polling tick and dead-lettered within ~30s — any brief network blip could permanently stop every watch. Fixed with `Watch.LastAttemptAt` + `WatchSchedule.IsDue`; verified live (1 attempt in 70s instead of 3 in 30s). 31 tests pass (11 new). Added a real "Microsoft Investor Relations Key Updates" watch and kept "Broken Source Test 2" as a ready-made failure example for demos.
 
 **Tue Nov 10 — Execution history view.** Let a user see what the
 agent actually did, step by step.
