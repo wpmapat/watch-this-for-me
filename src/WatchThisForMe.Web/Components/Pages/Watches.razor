@@ -110,10 +110,21 @@ else
                         }
                     </td>
                     <td class="text-nowrap text-end">
-                        <button class="btn btn-sm btn-outline-primary" @onclick="() => CheckNow(watch.Id)"
-                                disabled="@(checkingIds.Contains(watch.Id) || watch.Status != WatchStatus.Active)">
-                            @(checkingIds.Contains(watch.Id) ? "Checking..." : "Check now")
-                        </button>
+                        @if (watch.Status == WatchStatus.Active)
+                        {
+                            <button class="btn btn-sm btn-outline-primary" @onclick="() => CheckNow(watch.Id)"
+                                    disabled="@checkingIds.Contains(watch.Id)">
+                                @(checkingIds.Contains(watch.Id) ? "Checking..." : "Check now")
+                            </button>
+                        }
+                        else
+                        {
+                            <button class="btn btn-sm btn-outline-success" @onclick="() => Resume(watch.Id)"
+                                    disabled="@checkingIds.Contains(watch.Id)"
+                                    title="Switch this watch back on and check it straight away">
+                                @(checkingIds.Contains(watch.Id) ? "Resuming..." : "Resume")
+                            </button>
+                        }
                         <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteWatch(watch.Id)">Delete</button>
                     </td>
                 </tr>
@@ -236,6 +247,34 @@ else
         {
             await LoadSummariesAsync();
         }
+    }
+
+    // Switch the watch back on, then check it straight away so the user sees at once whether
+    // the source has recovered (if it hasn't, the row shows the error and it retries on schedule).
+    private async Task Resume(string id)
+    {
+        checkingIds.Add(id);
+        errorMessage = null;
+        try
+        {
+            HttpResponseMessage? response = null;
+            if (!await CallApiAsync(async client => response = await client.PostAsync($"api/watches/{id}/resume", null)))
+            {
+                return;
+            }
+
+            if (!response!.IsSuccessStatusCode)
+            {
+                errorMessage = "Couldn't resume that watch. Please try again.";
+                return;
+            }
+        }
+        finally
+        {
+            checkingIds.Remove(id);
+        }
+
+        await CheckNow(id);
     }
 
     private async Task DeleteWatch(string id)

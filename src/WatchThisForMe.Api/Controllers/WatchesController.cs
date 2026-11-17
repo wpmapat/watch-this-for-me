@@ -109,6 +109,28 @@ public class WatchesController(
         return NoContent();
     }
 
+    // Puts a Paused or Stopped (dead-lettered) watch back into service. Deliberately doesn't run
+    // a check itself: the source may still be down, and resuming should succeed regardless -
+    // the caller can follow up with POST {id}/check to try it straight away.
+    [HttpPost("{id}/resume")]
+    public async Task<ActionResult<Watch>> Resume(string id, CancellationToken cancellationToken)
+    {
+        var watch = await repository.GetAsync(id, cancellationToken);
+        if (watch is null)
+        {
+            return NotFound();
+        }
+
+        if (watch.Status != WatchStatus.Active)
+        {
+            watch.Status = WatchStatus.Active;
+            watch.ResumedAt = DateTimeOffset.UtcNow;
+            watch = await repository.UpdateAsync(watch, cancellationToken);
+        }
+
+        return Ok(watch);
+    }
+
     [HttpPost("{id}/check")]
     public async Task<ActionResult<Observation>> Check(string id, CancellationToken cancellationToken)
     {

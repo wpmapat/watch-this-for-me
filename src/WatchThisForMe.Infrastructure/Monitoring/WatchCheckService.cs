@@ -61,7 +61,7 @@ public class WatchCheckService(
         }
 
         var recentExecutions = await executionRepository.ListAsync(watchId, RecentExecutionsToInspect, cancellationToken);
-        var consecutiveFailures = CountConsecutiveFailures(recentExecutions);
+        var consecutiveFailures = CountConsecutiveFailures(recentExecutions, watch.ResumedAt);
 
         var execution = new WatchExecution
         {
@@ -120,12 +120,14 @@ public class WatchCheckService(
         }
     }
 
-    private static int CountConsecutiveFailures(IReadOnlyList<WatchExecution> recentExecutionsMostRecentFirst)
+    // Failures from before the user last resumed the watch don't count - resuming means
+    // "give it a fresh set of attempts", not "stop it again on the next hiccup".
+    private static int CountConsecutiveFailures(IReadOnlyList<WatchExecution> recentExecutionsMostRecentFirst, DateTimeOffset? resumedAt)
     {
         var count = 0;
         foreach (var execution in recentExecutionsMostRecentFirst)
         {
-            if (execution.Status != WatchExecutionStatus.Failed)
+            if (execution.Status != WatchExecutionStatus.Failed || execution.StartedAt < resumedAt)
             {
                 break;
             }

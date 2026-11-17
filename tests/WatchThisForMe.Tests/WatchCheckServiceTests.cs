@@ -181,6 +181,33 @@ public class WatchCheckServiceTests
     }
 
     [Fact]
+    public async Task ResumedWatch_GetsAFreshSetOfAttempts()
+    {
+        _site.ThenFails().ThenFails().ThenFails()   // stopped
+             .ThenFails().ThenFails()               // after resume: 2 failures - must survive
+             .ThenFails();                          // 3rd failure since resume - stopped again
+
+        await FailingCheck();
+        await FailingCheck();
+        await FailingCheck();
+        Assert.Equal(WatchStatus.DeadLettered, (await CurrentWatch()).Status);
+
+        // What POST api/watches/{id}/resume does.
+        var watch = await CurrentWatch();
+        watch.Status = WatchStatus.Active;
+        watch.ResumedAt = DateTimeOffset.UtcNow;
+        await _watches.UpdateAsync(watch);
+
+        await FailingCheck();
+        await FailingCheck();
+        Assert.Equal(WatchStatus.Active, (await CurrentWatch()).Status);
+
+        await FailingCheck();
+        Assert.Equal(WatchStatus.DeadLettered, (await CurrentWatch()).Status);
+        Assert.Equal([1, 2, 3, 1, 2, 3], _executions.All.Select(e => e.AttemptNumber));
+    }
+
+    [Fact]
     public async Task ARetryAfterAFailure_IsRecordedAsRetrying_UntilItFinishes()
     {
         _site.ThenFails().ThenReturns("v1.0 released");
@@ -192,6 +219,33 @@ public class WatchCheckServiceTests
         Assert.Equal(2, retry.AttemptNumber);
         Assert.Equal(WatchExecutionStatus.Succeeded, retry.Status);
         Assert.NotNull((await CurrentWatch()).LastCheckedAt);
+    }
+
+    [Fact]
+    public async Task SiteOutage_ThenRecovery_ComparesAgainstTheLastSnapshotBeforeTheOutage()
+    {
+        // Site works, goes down for two checks, comes back with two releases published meanwhile.
+        _site.ThenReturns("v1.0 released")
+             .ThenFails().ThenFails()
+             .ThenReturns("v1.0 released\nv2.0 released\nv3.0 released");
+
+        await _service.CheckAsync(WatchId);
+        await FailingCheck();
+        await FailingCheck();
+        var result = await _service.CheckAsync(WatchId);
+
+        // Picks up from where it left off: everything since the pre-outage snapshot arrives as
+        // ONE combined change, classified once - not one change per release.
+        Assert.NotNull(result);
+        Assert.Contains("v2.0", result.DiffSummary);
+        Assert.Contains("v3.0", result.DiffSummary);
+        Assert.Single(_classifier.Calls);
+        Assert.Equal(2, _observations.All.Count);
+
+        // Recovery clears the trouble: still running, and the success is recorded.
+        var watch = await CurrentWatch();
+        Assert.Equal(WatchStatus.Active, watch.Status);
+        Assert.Equal(WatchExecutionStatus.Succeeded, _executions.All[^1].Status);
     }
 
     [Fact]
