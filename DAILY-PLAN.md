@@ -44,6 +44,7 @@ last bit into the next session if something runs over.
 
 **Week 6** (in progress on `feature/week6-polish`)
 - [x] Dashboard UI polish — health badges, last important change per watch, Check now, product-purpose copy; plus a scheduler retry bug fix found while testing failure (details in the Week 6 section below)
+- [x] Extra (Nov 17): failure & load testing — 19 pipeline tests (50 total), 40-watch load test, Api-down handling (friendly message, `/health`, scheduler no longer crashes the Api on a database error)
 
 ---
 
@@ -247,6 +248,8 @@ real product.
 - Add status indicators (🟢/🟡) and "last checked"/"last important change" summaries per watch
 
   **Done (Nov 17):** Health badges (🟢 Healthy / 🟡 Needs attention / 🔴 Stopped / Paused / Waiting for first check) computed by `WatchHealthEvaluator` from watch status + latest run, with the failure reason shown under the badge. New `GET api/watches/summaries` assembles one row per watch (health, last error, last change, last important change with category + AI summary). Relative times, friendly frequencies, a Check now button, and copy on the Home and Watches pages explaining the product is for changes that need *interpreting*, not price/threshold alerts. **Bug found by deliberately testing failure:** the scheduler judged "due" by last *successful* check, so a failing watch was retried every polling tick and dead-lettered within ~30s — any brief network blip could permanently stop every watch. Fixed with `Watch.LastAttemptAt` + `WatchSchedule.IsDue`; verified live (1 attempt in 70s instead of 3 in 30s). 31 tests pass (11 new). Added a real "Microsoft Investor Relations Key Updates" watch and kept "Broken Source Test 2" as a ready-made failure example for demos.
+
+  **Also Nov 17 — failure & load testing:** 19 fast in-memory tests for the check pipeline, dashboard rows and scheduler (fakes in `tests/.../Fakes/TestDoubles.cs`; 50 tests total). Load test (40 watches, every check a meaningful change, real OpenAI, separate Api + database): 0 failures, but only ~16 checks/min — sequential scheduler is the bottleneck (each watch checked every ~160s vs 60s target); dashboard up to 1.1s at 40 watches; no OpenAI rate limits, Cosmos emulator throttled. Api-down test led to: friendly "can't reach the monitoring service" banner on the Watches page, anonymous `/health` liveness endpoint, and a fix so a database error while the scheduler lists watches no longer shuts down the whole Api. Remaining known issues (AI outages count toward dead-lettering, sequential scheduler, dashboard over-reads, multi-instance duplicates, orphaned records on delete) deferred — candidates for Fri "Final polish".
 
 **Tue Nov 10 — Execution history view.** Let a user see what the
 agent actually did, step by step.

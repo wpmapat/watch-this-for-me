@@ -230,6 +230,54 @@ tried "what if it keeps failing, over time?". Deliberately breaking
 something and watching what happens caught what testing the happy path
 never would.
 
+**Testing what happens when things go wrong (Week 6)** — after finding
+that bug, we went looking for more, deliberately.
+
+*Fast tests of the whole check pipeline.* The heart of the system — fetch
+the page, spot a change, ask the AI, save, retry, give up after 3 failures
+— had no automated tests at all. Now it has 19, using *fakes*: pretend
+versions of the website, the AI and the database that give scripted
+answers ("fail twice, then succeed"). They run in under a second, cost no
+OpenAI money, and can force situations that are hard to create for real.
+One proved something reassuring: **if OpenAI is down when a change
+arrives, the change isn't lost** — it's classified on the next check. And
+a test is only worth having if it fails when the bug comes back, so we
+temporarily removed this morning's fix and confirmed the test caught it.
+
+*Load test — what if there are lots of busy watches?* We ran a separate
+copy of the app with a separate database, pointed 40 watches at a fake
+website that published a new security fix or breaking change on *every*
+visit, and set each to check every minute — with the real AI judging every
+change. Results:
+- Nothing broke and every judgment was right, but the app **fell behind**:
+  it managed about 16 checks a minute, so each watch was checked every ~2.5
+  minutes instead of every 1. The cause is that the scheduler checks
+  watches **one at a time**. OpenAI was not the bottleneck.
+- The website stayed fast for normal requests, but the dashboard slowed to
+  over a second at 40 watches, because it reads every saved page snapshot
+  just to show a one-line summary.
+Both have known fixes (check several watches at once; save the summary on
+the watch itself) — noted for later rather than done now.
+
+*What if our own Api goes down?* Checking stops, because the scheduler
+lives inside the Api — but nothing is lost: websites keep their content,
+and when the Api comes back it catches up automatically, reporting
+everything that changed meanwhile as one combined change. Three fixes came
+out of this:
+- The Watches page used to show a wall of technical error text when the Api
+  was unreachable. Now it says *"We can't reach the monitoring service right
+  now"* with a Try again button.
+- A **health check** (`/health`): a tiny address Azure can ping every
+  minute to ask "are you alive?", and restart the app or raise an alert if
+  not. It deliberately only checks the app itself, not the database —
+  otherwise a short database hiccup would make Azure restart a perfectly
+  healthy app over and over, which fixes nothing.
+- A hidden crash risk: if the database had a hiccup at the exact moment the
+  scheduler asked for the list of watches, the error went unhandled, and
+  .NET's default reaction is to **shut down the whole app**. Now the
+  scheduler logs it and simply tries again on its next round — with a test
+  that proves it.
+
 ## How to see the shape of the whole system
 
 A visual class diagram of the current architecture was published as a
