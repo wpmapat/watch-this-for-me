@@ -108,5 +108,6 @@ dotnet run --project eval/WatchThisForMe.Evaluation
 ## Further reading
 
 - [`PROJECT-NOTES.md`](PROJECT-NOTES.md): plain-English explanations of every piece and why it's built the way it is
+- [`TESTING.md`](TESTING.md): test coverage, live failure/load scenarios, the bugs they found, and what isn't tested yet
 - [`DAILY-PLAN.md`](DAILY-PLAN.md): the day-by-day build log
 - [`watch-this-for-me-project.md`](watch-this-for-me-project.md): the original project spec
