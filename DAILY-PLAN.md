@@ -45,6 +45,7 @@ last bit into the next session if something runs over.
 **Week 6** (in progress on `feature/week6-polish`)
 - [x] Dashboard UI polish — health badges, last important change per watch, Check now, product-purpose copy; plus a scheduler retry bug fix found while testing failure (details in the Week 6 section below)
 - [x] Extra (Nov 17): failure & load testing — 19 pipeline tests (50 total), 40-watch load test, Api-down handling (friendly message, `/health`, scheduler no longer crashes the Api on a database error)
+- [x] Extra (Nov 17): Resume button for stopped/paused watches (fresh set of 3 attempts after resuming); test proving a recovered site is compared against its last pre-outage snapshot
 
 ---
 
