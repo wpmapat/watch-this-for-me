@@ -28,9 +28,23 @@
     }
 </div>
 
+@if (serviceProblem is not null)
+{
+    <div class="alert alert-warning d-flex justify-content-between align-items-center" role="alert">
+        <div>
+            <strong>@serviceProblem</strong>
+            <div class="small">Your watches are safe. Anything that changes in the meantime will be picked up once the service is back.</div>
+        </div>
+        <button class="btn btn-sm btn-outline-dark ms-3" @onclick="LoadSummariesAsync">Try again</button>
+    </div>
+}
+
 @if (summaries is null)
 {
-    <p>Loading...</p>
+    @if (serviceProblem is null)
+    {
+        <p>Loading...</p>
+    }
 }
 else if (summaries.Count == 0)
 {
@@ -121,15 +135,47 @@ else
     private bool isCreating;
     private string? errorMessage;
 
+    // Set when the Api can't be reached or errors; shown as a banner instead of a crash page.
+    // The last successfully loaded list stays on screen underneath it.
+    private string? serviceProblem;
+
     protected override async Task OnInitializedAsync()
     {
         await LoadSummariesAsync();
     }
 
+    // Runs one Api interaction, turning "Api down" or "Api errored" into a friendly banner.
+    // Deliberately catches only HTTP failures and timeouts: ApiClient signals "user must sign
+    // in again" with a different exception, which has to propagate to trigger the redirect.
+    private async Task<bool> CallApiAsync(Func<HttpClient, Task> action)
+    {
+        try
+        {
+            var client = await Api.CreateAsync();
+            await action(client);
+            return true;
+        }
+        catch (HttpRequestException ex)
+        {
+            serviceProblem = ex.StatusCode is null
+                ? "We can't reach the monitoring service right now."
+                : "The monitoring service ran into a problem.";
+            return false;
+        }
+        catch (TaskCanceledException)
+        {
+            serviceProblem = "The monitoring service is taking too long to respond.";
+            return false;
+        }
+    }
+
     private async Task LoadSummariesAsync()
     {
-        var client = await Api.CreateAsync();
-        summaries = await client.GetFromJsonAsync<List<WatchSummary>>("api/watches/summaries", JsonOptions) ?? [];
+        if (await CallApiAsync(async client =>
+                summaries = await client.GetFromJsonAsync<List<WatchSummary>>("api/watches/summaries", JsonOptions) ?? []))
+        {
+            serviceProblem = null;
+        }
     }
 
     private async Task CreateFromNaturalLanguage()
@@ -144,17 +190,21 @@ else
 
         try
         {
-            var client = await Api.CreateAsync();
-            var response = await client.PostAsJsonAsync("api/watches/from-natural-language", new { request = naturalLanguageRequest });
+            HttpResponseMessage? response = null;
+            if (!await CallApiAsync(async client =>
+                    response = await client.PostAsJsonAsync("api/watches/from-natural-language", new { request = naturalLanguageRequest })))
+            {
+                return;
+            }
 
-            if (response.IsSuccessStatusCode)
+            if (response!.IsSuccessStatusCode)
             {
                 naturalLanguageRequest = string.Empty;
                 await LoadSummariesAsync();
             }
             else
             {
-                errorMessage = $"Failed to create watch ({(int)response.StatusCode}).";
+                errorMessage = "Couldn't create that watch. Try describing the source more specifically (e.g. a repo name or URL), or try again in a moment.";
             }
         }
         finally
@@ -169,26 +219,31 @@ else
         errorMessage = null;
         try
         {
-            var client = await Api.CreateAsync();
-            var response = await client.PostAsync($"api/watches/{id}/check", null);
-            if (!response.IsSuccessStatusCode)
+            HttpResponseMessage? response = null;
+            if (await CallApiAsync(async client => response = await client.PostAsync($"api/watches/{id}/check", null))
+                && !response!.IsSuccessStatusCode)
             {
-                // The failure itself is recorded as an execution, so the refreshed row shows the error.
-                errorMessage = $"Check failed ({(int)response.StatusCode}).";
+                // The failure itself is recorded as a run, so the refreshed row shows the actual reason.
+                errorMessage = "The check didn't succeed. See the watch's row for the reason.";
             }
         }
         finally
         {
             checkingIds.Remove(id);
+        }
+
+        if (serviceProblem is null)
+        {
             await LoadSummariesAsync();
         }
     }
 
     private async Task DeleteWatch(string id)
     {
-        var client = await Api.CreateAsync();
-        await client.DeleteAsync($"api/watches/{id}");
-        await LoadSummariesAsync();
+        if (await CallApiAsync(client => client.DeleteAsync($"api/watches/{id}")))
+        {
+            await LoadSummariesAsync();
+        }
     }
 
     private string HealthCountsText()

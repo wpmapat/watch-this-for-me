@@ -17,7 +17,18 @@ public class WatchScheduler(
 
         while (!stoppingToken.IsCancellationRequested)
         {
-            await RunDueChecksAsync(stoppingToken);
+            try
+            {
+                await RunDueChecksAsync(stoppingToken);
+            }
+            catch (Exception ex) when (!stoppingToken.IsCancellationRequested)
+            {
+                // E.g. Cosmos briefly unavailable while listing watches. Without this, the exception
+                // escapes ExecuteAsync and .NET's default BackgroundService behavior stops the whole
+                // host - the Api and all monitoring - over what may be a seconds-long blip. Log it
+                // and try again next round instead.
+                logger.LogError(ex, "Scheduler round failed; retrying in {Interval}", interval);
+            }
 
             try
             {

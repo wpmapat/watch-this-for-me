@@ -30,6 +30,11 @@ builder.Services.AddSourceFetchers();
 builder.Services.AddMonitoring(builder.Configuration);
 builder.Services.AddAiInterpretation(builder.Configuration);
 
+// Liveness only: "is this process up and serving requests?" Deliberately no Cosmos/OpenAI
+// checks - Azure restarts an instance whose health check fails, and restarting a healthy app
+// because a dependency blipped would cause restart loops without fixing the dependency.
+builder.Services.AddHealthChecks();
+
 // Every endpoint requires a caller signed in to our Entra tenant whose token carries this Api's
 // "access_as_user" scope. A fallback policy (rather than [Authorize] per controller) means a
 // controller added later is locked down by default instead of open by omission. The only way to
@@ -71,7 +76,8 @@ var otelBuilder = builder.Services.AddOpenTelemetry()
     .WithTracing(tracing =>
     {
         tracing.AddSource(Telemetry.SourceName)
-            .AddAspNetCoreInstrumentation()
+            // Health probes arrive every minute from Azure; tracing them would bury real traffic.
+            .AddAspNetCoreInstrumentation(o => o.Filter = context => context.Request.Path != "/health")
             .AddHttpClientInstrumentation();
 
         if (builder.Environment.IsDevelopment())
@@ -120,5 +126,9 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Exempt from the sign-in fallback policy: Azure's health probe can't sign in, and the
+// response ("Healthy"/"Unhealthy") reveals nothing.
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
