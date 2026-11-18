@@ -62,6 +62,17 @@ public class PageDiffEndToEndTests
     }
 
     [Fact]
+    public void RandomTraceIdOnEveryVisit_IsNotAChange()
+    {
+        // Microsoft's investor page prints a new trace id on every request; before masking, that
+        // made the page "change" every hour and cost an AI call each time.
+        var before = Clean(ReleasesPage(".NET 11.0 RC 2").Replace("</footer>", "</footer><p>This is the Trace Id: 504cbad79399f4f50a17dd1c0b188409</p>"));
+        var after = Clean(ReleasesPage(".NET 11.0 RC 2").Replace("</footer>", "</footer><p>This is the Trace Id: 62019e64c139185ee176bba1b0aab2e5</p>"));
+
+        Assert.Equal(before, after);
+    }
+
+    [Fact]
     public void ScriptsStylesAndTags_NeverReachTheDiff()
     {
         var cleaned = Clean(ReleasesPage(".NET 11.0 RC 2"));

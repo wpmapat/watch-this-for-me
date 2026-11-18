@@ -3,7 +3,7 @@
 How *Watch This for Me* is tested, what each test protects, the live failure scenarios
 we ran (and the bugs they found), and what isn't covered yet.
 
-Last updated: 2026-11-18 · 84 automated tests · 97-example AI evaluation · 8 live scenarios
+Last updated: 2026-11-18 · 97 automated tests · 97-example AI evaluation · 9 live scenarios
 
 ---
 
@@ -11,7 +11,7 @@ Last updated: 2026-11-18 · 84 automated tests · 97-example AI evaluation · 8 
 
 | Area | Automated tests | Live scenario tested | Status |
 |---|---|---|---|
-| Text cleanup (HTML, dates, counts) | 11 | Real watches re-checked | ✅ ([critical bug fixed](#fixed-2026-11-18-critical--the-ai-couldnt-see-real-changes)) |
+| Text cleanup (HTML, dates, counts, random ids) | 18 | Real watches re-checked | ✅ ([critical bug fixed](#fixed-2026-11-18-critical--the-ai-couldnt-see-real-changes)) |
 | Diffing | 3 + 4 end-to-end | Scenario 6 | ✅ fixed 2026-11-18 (was broken on real pages) |
 | Check pipeline (detect → classify → save → prune) | 19 | Scenarios 1, 6, 8 | ✅ |
 | Retries, stopping after failures, resuming | (in the 12 above) + 4 scheduling | Scenarios 1, 5 | ✅ (2 bugs found & fixed) |
@@ -23,9 +23,10 @@ Last updated: 2026-11-18 · 84 automated tests · 97-example AI evaluation · 8 
 | Watched site going down & recovering | 3 | Scenarios 5, 6, 8 | ✅ hard outages · ✅ "not found"/maintenance pages flagged, recovery compared with the last real page (2026-11-18) |
 | Page moved, redirected or address gone | 13 fetcher + 5 pipeline | Scenario 8 | ✅ (2 silent failures found & fixed) · ⚠️ redesigns can trigger false alarms |
 | Scale / performance | — | Scenario 4 | ⚠️ falls behind at ~16 checks/min |
-| Storage (Cosmos), MCP server, real-web fetcher | 9 | — | ✅ |
+| Storage (Cosmos), MCP server, real-web fetcher | 11 | — | ✅ |
+| Cost & storage growth | 3 + 2 Cosmos | Scenario 9 (audit) | ✅ noisy random-id pages fixed · run records expire after 30 days · deleting a watch removes its history · ⚠️ no AI budget/limit yet |
 | Security (prompt injection, SSRF) | — | — | ❌ not tested yet |
-| Weird inputs, cost limits | — | — | ❌ not tested yet |
+| Weird inputs | — | — | ❌ not tested yet |
 
 ---
 
@@ -48,9 +49,9 @@ Cosmos DB emulator container. The live scenarios are manual — scripts in
 
 ---
 
-## Automated tests (84)
+## Automated tests (97)
 
-### Check pipeline — `WatchCheckServiceTests` (19)
+### Check pipeline — `WatchCheckServiceTests` (21)
 Runs the real `WatchCheckService` against in-memory fakes ([`Fakes/TestDoubles.cs`](tests/WatchThisForMe.Tests/Fakes/TestDoubles.cs)):
 a scriptable fake website ("return this, then fail, then return that"), a fake AI, and
 in-memory stores that copy on every save/read like a real database, so a forgotten save
@@ -77,6 +78,8 @@ fails the test instead of hiding behind shared objects. Runs in under a second, 
 | `PageComesBack_IsComparedWithTheLastRealPage_NotTheErrorPage` | old releases reported as new after a maintenance page (Scenario 6) — verified it fails without the fix |
 | `PageComesBackUnchanged_ClearsTheWarning_WithoutAnAICall` | a stale warning, or a wasted AI call, when the page returns as it was |
 | `NewAddress_StartsAFreshBaseline_WithoutCallingTheAI` | a false "everything changed" after the user edits the address |
+| `V2SnapshotWithARandomId_IsUpgradedInPlace_SoTheMaskingIsNotAChange` | one wasted AI call per watch when id masking was introduced |
+| `V2Snapshot_ARealChangeRightAfterTheUpgrade_IsStillCaught` | a cleanup upgrade silently swallowing a real release |
 
 ### Scheduling — `WatchScheduleTests` (4) + `WatchSchedulerTests` (1)
 | Test | Protects against |
@@ -87,7 +90,7 @@ fails the test instead of hiding behind shared objects. Runs in under a second, 
 | `WatchSavedBeforeLastAttemptAtExisted_FallsBackToLastCheckedAt` | older stored watches breaking after the fix |
 | `DatabaseErrorWhileListingWatches_DoesNotKillTheScheduler` | **a database blip shutting down the whole Api** (Scenario 3) — verified it fails without the fix |
 
-### Dashboard — `WatchHealthEvaluatorTests` (9) + `WatchSummaryFactoryTests` (11)
+### Dashboard — `WatchHealthEvaluatorTests` (9) + `WatchSummaryFactoryTests` (12)
 | Test | Protects against |
 |---|---|
 | `ActiveWatchThatNeverRan_IsPending` | new watches showing as broken |
@@ -101,6 +104,7 @@ fails the test instead of hiding behind shared objects. Runs in under a second, 
 | `SuccessfulRunsOnTheWrongPage_NeedAttention` (×2) | 🟢 Healthy while checking a "not found" page or the homepage |
 | `RedirectedPage_NeedsAttention_AndSaysWhereItGoesNow` / `UnavailablePage_NeedsAttention_WithTheAIsReason` | 🟡 with no explanation or next step |
 | `SourceProblem_AfterAnOldFailure_ShowsTheCurrentProblemNotTheOldError` | a stale error hiding the real current problem |
+| `ChangeThatDiffsToNothing_IsNotALastChange` | "changed 1 h ago" when only a masked id differed |
 
 ### Web fetcher (offline) — `WebPageSourceFetcherOfflineTests` (13)
 A stand-in HTTP handler plays the website, so status codes and redirects are exact and no
@@ -109,21 +113,26 @@ the dashboard instead of "Response status code does not indicate success"); a re
 another page/site/the homepage is reported; harmless redirects (http→https, `www.`, trailing
 slash, host capitalisation) are not.
 
-### Text processing — `HtmlNormalizerTests` (5), `VolatileContentNormalizerTests` (6), `TextDifferTests` (3)
+### Text processing — `HtmlNormalizerTests` (5), `VolatileContentNormalizerTests` (13), `TextDifferTests` (3)
 Strip scripts/styles/tags; one line per block (heading, paragraph, list item, table row)
 while inline tags stay on their line and source indentation doesn't matter; ignore noise
-("5 minutes ago", dates, "123 stars", HN points) so it doesn't count as a change; diff shows
+("5 minutes ago", dates, "123 stars", HN points, random trace/request ids and GUIDs) so it
+doesn't count as a change — while long plain numbers, versions, short commit hashes and
+words are left alone; diff shows
 only the changed line; diff is truncated when huge.
 
-### End-to-end page diff — `PageDiffEndToEndTests` (4)
+### End-to-end page diff — `PageDiffEndToEndTests` (5)
 Realistic release page (menu, script, styles, "3 hours ago", star count) → the same cleanup
 the real fetcher uses → diff. A new release produces exactly `+ .NET 11.0 RC 3 - preview`;
 an edited line shows only that line's old/new versions; noise-only changes produce no diff;
-scripts/styles/tags never reach the diff. **Verified:** with the old cleanup put back, 5 of
+scripts/styles/tags never reach the diff; a new random trace id on every visit isn't a
+change. **Verified:** with the old cleanup put back, 5 of
 the new tests fail — this is the test that would have caught the critical bug.
 
-### Integration — Cosmos (2), MCP server (5), real-web fetcher (2)
-Real Cosmos emulator round-trips; the MCP server exposes the expected tools and its tools
+### Integration — Cosmos (4), MCP server (5), real-web fetcher (2)
+Real Cosmos emulator round-trips; the run-records container really has a 30-day expiry;
+deleting a watch's history removes all of its snapshots and run records and nothing else
+(`CosmosHistoryCleanupTests`); the MCP server exposes the expected tools and its tools
 work end-to-end (incl. the real GitHub API — `GetGithubIssues_ReturnsIssueList` is known to
 be occasionally flaky); fetching a real page gives stable hashes for unchanged content.
 
@@ -230,6 +239,41 @@ as new (2 of 5 runs after adding the `page_unavailable` rule, 0 of 1 before — 
 to tell whether the new rule made it worse). Next step: correctness testing with repeated
 runs, with and without the rule.
 
+### Scenario 9 — Cost & noise audit (2026-11-18)
+*Script:* [`tests/scenarios/cost_audit.py`](tests/scenarios/cost_audit.py) — reads every watch's history from the Api and
+reports change rate, meaningful rate, estimated AI tokens/$ per month and stored run records.
+
+*Cost model:* an unchanged page costs **no AI** (one download + a few small database
+operations). A changed page costs 3 AI calls (embed diff, classify, embed summary) —
+≈2,000 tokens, **≈$0.0004 per change** with gpt-4o-mini at list prices. So cost scales with
+how often a page *changes*, not how often it's checked.
+
+*Before:*
+
+| Watch | Every | Change rate | Meaningful | AI $/month |
+|---|---|---|---|---|
+| .NET releases (×2) | daily | 78–100% | 12 of 14 | ≈$0.01 each |
+| Microsoft Investor Relations | hourly | ~every check | 5 of 6 — **all 5 false** (old diff bug) | $0.18 — 480 AI calls/month for nothing |
+
+*Found:* the Microsoft page prints a random **Trace Id** on every visit, so it "changed" every
+hour forever. Before the diff fix this produced 5 false "new earnings" alerts; after it, the
+AI correctly said "only the Trace Id changed" — but was still asked every hour. Also: run
+records (one per check, ~8,760/year per hourly watch) were **never deleted**, and deleting a
+watch left all its history behind.
+
+*Fixed:* random ids (GUIDs, 16+ character hex mixing letters and digits) are masked like
+dates and counts (cleanup format v3; v2 snapshots are upgraded in place, so the switch costs
+no AI call and can't swallow a real change). Run records expire after 30 days (Cosmos
+container TTL, `CosmosOptions.ExecutionRetentionDays`; the Azure deployment must set the same).
+Deleting a watch deletes its snapshots and run records first.
+
+*Live re-check:* the Microsoft watch's next check upgraded its old snapshot → empty diff, no
+AI call; the two checks after that found **no change** (previously: a change + 3 AI calls each).
+
+*Takeaway:* in dollars the service is cheap (≈$0.20/month for these watches); the real cost
+of noise is false alerts and the user's trust. Still open: no AI budget or per-watch
+limit, and token use isn't recorded per watch.
+
 ---
 
 ## Fixed 2026-11-18: critical — the AI couldn't see real changes
@@ -264,7 +308,8 @@ from 1 line to 405, with each release on its own lines.
 - **Redesigned pages** can be reported as a new release (Scenario 8, 2 of 5 runs).
 - **A watch created on an already-broken page** ("not found" from day one) isn't flagged:
   the first snapshot is a baseline and isn't shown to the AI.
-- **Deleting a watch** leaves its snapshots and run records behind.
+- **No AI budget:** a page that genuinely changes on every check (e.g. a live feed) still
+  costs 3 AI calls per check, with no daily limit or "this watch is noisy" warning.
 
 ---
 
@@ -279,5 +324,5 @@ from 1 line to 405, with each release on its own lines.
    `169.254.169.254` must be refused (today they are accepted — must fix before deploying).
 3. **Weird inputs** — page over 2 MB (Cosmos item limit), JavaScript-only page, non-English
    page, PDF/image URL, redirect loop, very slow page, nonsense in "Create Watch".
-4. **Cost** — worst-case AI calls and tokens per watch per day; minimum check frequency; a
-   daily AI budget so a noisy watch can't run up the bill.
+4. **Cost** — audit done (Scenario 9); still to do: minimum check frequency, a daily AI
+   budget so a noisy watch can't run up the bill, per-watch token tracking.

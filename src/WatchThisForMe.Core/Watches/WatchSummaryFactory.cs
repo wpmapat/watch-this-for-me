@@ -37,7 +37,7 @@ public static class WatchSummaryFactory
             Health = health,
             LastError = health is WatchHealth.NeedsAttention or WatchHealth.Stopped ? lastError : null,
             // The very first observation is a baseline with no diff - not a change from anything.
-            LastChangeAt = observations.Where(o => o.DiffSummary is not null).Select(o => (DateTimeOffset?)o.CheckedAt).Max(),
+            LastChangeAt = observations.Where(o => !string.IsNullOrEmpty(o.DiffSummary)).Select(o => (DateTimeOffset?)o.CheckedAt).Max(),
             LastImportantChangeAt = lastImportant?.CheckedAt,
             LastImportantChangeSummary = lastImportant?.ClassificationSummary,
             LastImportantChangeCategory = lastImportant?.Category

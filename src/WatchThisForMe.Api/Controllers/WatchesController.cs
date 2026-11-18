@@ -113,6 +113,10 @@ public class WatchesController(
             return NotFound();
         }
 
+        // History first: if this fails part-way the watch still exists, so deleting it again
+        // finishes the job instead of leaving orphaned records nobody can reach.
+        await observationRepository.DeleteAllAsync(id, cancellationToken);
+        await executionRepository.DeleteAllAsync(id, cancellationToken);
         await repository.DeleteAsync(id, cancellationToken);
         return NoContent();
     }

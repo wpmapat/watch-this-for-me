@@ -9,4 +9,7 @@ public interface IObservationRepository
     Task<IReadOnlyList<Observation>> ListAsync(string watchId, int? maxCount = null, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(string id, string watchId, CancellationToken cancellationToken = default);
+
+    // Removes every snapshot of a watch - used when the watch itself is deleted.
+    Task DeleteAllAsync(string watchId, CancellationToken cancellationToken = default);
 }

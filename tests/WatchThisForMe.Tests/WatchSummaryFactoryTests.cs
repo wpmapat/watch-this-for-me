@@ -164,6 +164,15 @@ public class WatchSummaryFactoryTests
     }
 
     [Fact]
+    public void ChangeThatDiffsToNothing_IsNotALastChange()
+    {
+        // e.g. the only difference was a random id that is now masked.
+        var summary = WatchSummaryFactory.Create(MakeWatch(), [Run(WatchExecutionStatus.Succeeded)], [Obs(1, diff: ""), Obs(10, diff: null)]);
+
+        Assert.Null(summary.LastChangeAt);
+    }
+
+    [Fact]
     public void NeverRun_IsPendingWithNothingToShow()
     {
         var summary = WatchSummaryFactory.Create(MakeWatch(), [], []);

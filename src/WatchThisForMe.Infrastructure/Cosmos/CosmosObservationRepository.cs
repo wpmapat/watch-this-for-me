@@ -66,4 +66,7 @@ public class CosmosObservationRepository : IObservationRepository
     {
         await _container.DeleteItemAsync<Observation>(id, new PartitionKey(watchId), cancellationToken: cancellationToken);
     }
+
+    public Task DeleteAllAsync(string watchId, CancellationToken cancellationToken = default) =>
+        CosmosPartition.DeleteAllAsync(_container, watchId, cancellationToken);
 }

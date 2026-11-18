@@ -8,4 +8,7 @@ public interface IWatchExecutionRepository
 
     // Most recent first.
     Task<IReadOnlyList<WatchExecution>> ListAsync(string watchId, int? maxCount = null, CancellationToken cancellationToken = default);
+
+    // Removes every run record of a watch - used when the watch itself is deleted.
+    Task DeleteAllAsync(string watchId, CancellationToken cancellationToken = default);
 }

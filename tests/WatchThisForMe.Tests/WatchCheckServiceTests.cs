@@ -77,8 +77,9 @@ public class WatchCheckServiceTests
         Assert.Empty(_classifier.Calls);
     }
 
-    // An observation saved by the old normalizer: no format version, whole page on one line.
-    private Task SeedSnapshotFromBeforeTheUpgrade(string content) =>
+    // An observation saved by an older cleanup. No version = v1 (whole page on one line);
+    // v2 = one line per block, but random ids not masked yet.
+    private Task SeedSnapshotFromBeforeTheUpgrade(string content, int? formatVersion = null) =>
         _observations.CreateAsync(new Observation
         {
             Id = "legacy-1",
@@ -86,8 +87,34 @@ public class WatchCheckServiceTests
             CheckedAt = DateTimeOffset.UtcNow.AddHours(-1),
             ContentHash = content,
             NormalizedContent = content,
+            ContentFormatVersion = formatVersion,
             Changed = true
         });
+
+    [Fact]
+    public async Task V2SnapshotWithARandomId_IsUpgradedInPlace_SoTheMaskingIsNotAChange()
+    {
+        await SeedSnapshotFromBeforeTheUpgrade("Investors\nTrace Id: 504cbad79399f4f50a17dd1c0b188409", formatVersion: 2);
+        _site.ThenReturns("Investors\nTrace Id: [ID]");
+
+        var result = await _service.CheckAsync(WatchId);
+
+        Assert.Equal(string.Empty, result!.DiffSummary);
+        Assert.Empty(_classifier.Calls);
+    }
+
+    [Fact]
+    public async Task V2Snapshot_ARealChangeRightAfterTheUpgrade_IsStillCaught()
+    {
+        // A "fresh baseline whenever the version is old" rule would swallow this release.
+        await SeedSnapshotFromBeforeTheUpgrade("Releases\nv1.0", formatVersion: 2);
+        _site.ThenReturns("Releases\nv1.1\nv1.0");
+
+        var result = await _service.CheckAsync(WatchId);
+
+        Assert.Equal("+ v1.1", result!.DiffSummary);
+        Assert.Single(_classifier.Calls);
+    }
 
     [Fact]
     public async Task FirstCheckAfterNormalizerUpgrade_SavesANewBaseline_WithoutCallingTheAI()

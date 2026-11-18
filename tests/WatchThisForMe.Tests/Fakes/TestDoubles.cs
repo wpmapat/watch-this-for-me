@@ -79,6 +79,12 @@ public class InMemoryObservationRepository : IObservationRepository
         _observations.RemoveAll(o => o.Id == id && o.WatchId == watchId);
         return Task.CompletedTask;
     }
+
+    public Task DeleteAllAsync(string watchId, CancellationToken cancellationToken = default)
+    {
+        _observations.RemoveAll(o => o.WatchId == watchId);
+        return Task.CompletedTask;
+    }
 }
 
 public class InMemoryWatchExecutionRepository : IWatchExecutionRepository
@@ -110,6 +116,12 @@ public class InMemoryWatchExecutionRepository : IWatchExecutionRepository
         }
 
         return Task.FromResult<IReadOnlyList<WatchExecution>>(mostRecentFirst.Select(Copy.Of).ToList());
+    }
+
+    public Task DeleteAllAsync(string watchId, CancellationToken cancellationToken = default)
+    {
+        _executions.RemoveAll(e => e.WatchId == watchId);
+        return Task.CompletedTask;
     }
 }
 

@@ -54,4 +54,19 @@ public class VolatileContentNormalizerTests
 
         Assert.NotEqual(VolatileContentNormalizer.Normalize(before), VolatileContentNormalizer.Normalize(after));
     }
+
+    [Theory]
+    [InlineData("This is the Trace Id: 504cbad79399f4f50a17dd1c0b188409", "This is the Trace Id: [ID]")] // Microsoft IR page
+    [InlineData("Request 3f2504e0-4f89-11d3-9a0c-0305e82c3301 failed", "Request [ID] failed")]               // GUID
+    [InlineData("session=9F86D081884C7D659A2FEAA0C55AD015", "session=[ID]")]
+    public void Normalize_MasksRandomIds(string input, string expected) =>
+        Assert.Equal(expected, VolatileContentNormalizer.Normalize(input));
+
+    [Theory]
+    [InlineData("Order number 1234567890123456")]   // long number, no letters
+    [InlineData("Version 10.0.404 and v11.0.100-rc.3")]
+    [InlineData("commit abc1234 fixed the build")] // short hash - too short to be a random id
+    [InlineData("Breaking change in the deadbeef module")]
+    public void Normalize_LeavesOrdinaryTextAlone(string input) =>
+        Assert.Equal(input, VolatileContentNormalizer.Normalize(input));
 }

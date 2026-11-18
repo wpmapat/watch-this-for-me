@@ -49,4 +49,7 @@ public class CosmosWatchExecutionRepository : IWatchExecutionRepository
 
         return results;
     }
+
+    public Task DeleteAllAsync(string watchId, CancellationToken cancellationToken = default) =>
+        CosmosPartition.DeleteAllAsync(_container, watchId, cancellationToken);
 }

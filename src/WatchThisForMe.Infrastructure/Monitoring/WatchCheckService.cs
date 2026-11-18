@@ -9,6 +9,7 @@ using WatchThisForMe.Core.Watches;
 using WatchThisForMe.Infrastructure.Diffing;
 using WatchThisForMe.Infrastructure.Embeddings;
 using WatchThisForMe.Infrastructure.Observability;
+using WatchThisForMe.Infrastructure.Sources;
 
 namespace WatchThisForMe.Infrastructure.Monitoring;
 
@@ -167,7 +168,7 @@ public class WatchCheckService(
             Changed = true,
             DiffSummary = compareWith is null
                 ? null
-                : TracedStep("diff", () => TextDiffer.Summarize(compareWith.NormalizedContent, snapshot.NormalizedContent))
+                : TracedStep("diff", () => TextDiffer.Summarize(compareWith, snapshot.NormalizedContent))
         };
 
         if (!string.IsNullOrEmpty(observation.DiffSummary))
@@ -208,9 +209,9 @@ public class WatchCheckService(
         return created;
     }
 
-    // Which earlier snapshot the new content should be diffed against, or null to save it as a
+    // The earlier page text the new content should be diffed against, or null to save it as a
     // fresh baseline without asking the AI anything.
-    private async Task<Observation?> FindContentToCompareWithAsync(
+    private async Task<string?> FindContentToCompareWithAsync(
         Watch watch, Observation? previous, SourceSnapshot snapshot, CancellationToken cancellationToken)
     {
         // previous.NormalizedContent can be null for an old/corrupted observation row even
@@ -240,22 +241,29 @@ public class WatchCheckService(
                 .MaxBy(o => o.CheckedAt) ?? previous;
         }
 
-        return IsFromOldSingleLineFormat(compareWith, snapshot) ? null : compareWith;
+        return ContentInCurrentFormat(compareWith, snapshot);
     }
 
-    // One-time migration (Nov 2026): HtmlNormalizer used to flatten every page onto one line.
-    // Diffing an old one-line snapshot against a new multi-line one would report the whole page
-    // as changed, so the first check after the upgrade just saves a fresh baseline instead.
-    // Snapshots saved since then carry a format version, so a page that genuinely grows from one
-    // line to two is still diffed normally.
-    private static bool IsFromOldSingleLineFormat(Observation previous, SourceSnapshot current) =>
-        previous.ContentFormatVersion is null
-        && !previous.NormalizedContent.Contains('\n')
-        && current.NormalizedContent.Contains('\n');
+    // Bump when a change to the page cleanup (HtmlNormalizer, VolatileContentNormalizer) would
+    // make old snapshots look different from new ones even though the page itself didn't change -
+    // and teach ContentInCurrentFormat how to bring the previous version up to date.
+    private const int CurrentContentFormatVersion = 3;
 
-    // Bump when a change to the page cleanup (HtmlNormalizer etc.) would make old snapshots
-    // look different from new ones even though the page itself didn't change.
-    private const int CurrentContentFormatVersion = 2;
+    // A stored snapshot's text as the current cleanup would have produced it, so the diff shows
+    // only real page changes; null when that's impossible and a fresh baseline is needed.
+    private static string? ContentInCurrentFormat(Observation stored, SourceSnapshot current) => stored.ContentFormatVersion switch
+    {
+        CurrentContentFormatVersion => stored.NormalizedContent,
+
+        // v3 (Nov 18 2026) only added masking of random ids, which can be re-applied to v2 text.
+        2 => VolatileContentNormalizer.Normalize(stored.NormalizedContent),
+
+        // v1 (no version, before Nov 18 2026) flattened the whole page onto one line, which can't
+        // be compared line by line with the new format. A page that is still a single line is
+        // unaffected, so it's compared as usual.
+        _ when !current.NormalizedContent.Contains('\n') => stored.NormalizedContent,
+        _ => null
+    };
 
     private async Task PruneOldObservationsAsync(string watchId, CancellationToken cancellationToken)
     {
