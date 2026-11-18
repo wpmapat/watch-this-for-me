@@ -82,6 +82,14 @@ public class WatchesController(
             return NotFound();
         }
 
+        if (existing.Source != request.Source)
+        {
+            // A new address is a new page: start a fresh baseline, and forget warnings about the old one.
+            existing.SourceChangedAt = DateTimeOffset.UtcNow;
+            existing.RedirectedTo = null;
+            existing.PageUnavailableReason = null;
+        }
+
         existing.Name = request.Name;
         existing.Source = request.Source;
         existing.SourceType = request.SourceType;

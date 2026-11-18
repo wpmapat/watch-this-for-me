@@ -34,4 +34,12 @@ public class WatchHealthEvaluatorTests
     [Fact]
     public void PausedWatch_IsPaused_EvenAfterAFailure() =>
         Assert.Equal(WatchHealth.Paused, WatchHealthEvaluator.Evaluate(WatchStatus.Paused, Execution(WatchExecutionStatus.Failed)));
+
+    // The silent-failure case from Scenario 8: every check "succeeds", but on a "not found"
+    // page or the site's homepage.
+    [Theory]
+    [InlineData(WatchExecutionStatus.Succeeded)]
+    [InlineData(WatchExecutionStatus.Started)]
+    public void SuccessfulRunsOnTheWrongPage_NeedAttention(WatchExecutionStatus runStatus) =>
+        Assert.Equal(WatchHealth.NeedsAttention, WatchHealthEvaluator.Evaluate(WatchStatus.Active, Execution(runStatus), sourceLooksWrong: true));
 }

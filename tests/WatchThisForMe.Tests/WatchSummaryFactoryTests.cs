@@ -128,6 +128,42 @@ public class WatchSummaryFactoryTests
     }
 
     [Fact]
+    public void RedirectedPage_NeedsAttention_AndSaysWhereItGoesNow()
+    {
+        var watch = MakeWatch();
+        watch.RedirectedTo = "https://example.com/";
+
+        var summary = WatchSummaryFactory.Create(watch, [Run(WatchExecutionStatus.Succeeded)], []);
+
+        Assert.Equal(WatchHealth.NeedsAttention, summary.Health);
+        Assert.Equal("This page now redirects to https://example.com/. If it has moved, edit the watch's address.", summary.LastError);
+    }
+
+    [Fact]
+    public void UnavailablePage_NeedsAttention_WithTheAIsReason()
+    {
+        var watch = MakeWatch();
+        watch.PageUnavailableReason = "The page now shows a 'Page not found' message.";
+
+        var summary = WatchSummaryFactory.Create(watch, [Run(WatchExecutionStatus.Succeeded)], []);
+
+        Assert.Equal(WatchHealth.NeedsAttention, summary.Health);
+        Assert.Equal("The page doesn't look like the real page any more: The page now shows a 'Page not found' message.", summary.LastError);
+    }
+
+    [Fact]
+    public void SourceProblem_AfterAnOldFailure_ShowsTheCurrentProblemNotTheOldError()
+    {
+        var watch = MakeWatch();
+        watch.RedirectedTo = "https://example.com/";
+        var runs = new[] { Run(WatchExecutionStatus.Succeeded), Run(WatchExecutionStatus.Failed, "Old timeout") };
+
+        var summary = WatchSummaryFactory.Create(watch, runs, []);
+
+        Assert.StartsWith("This page now redirects", summary.LastError);
+    }
+
+    [Fact]
     public void NeverRun_IsPendingWithNothingToShow()
     {
         var summary = WatchSummaryFactory.Create(MakeWatch(), [], []);

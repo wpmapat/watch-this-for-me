@@ -11,9 +11,23 @@
 .health-bad { background: #fde8e8; color: #9b1c1c; }
 .health-neutral { background: #eef0f3; color: #4a5160; }
 
-.source-line,
-.error-line {
+.source-line {
     max-width: 22rem;
+}
+
+/* Problems can be a sentence or two ("This page now redirects to ... edit the address"):
+   show up to three lines, full text on hover. */
+.error-line {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 22rem;
+}
+
+.edit-row td {
+    background: #f6f8fa;
 }
 
 /* Show up to two lines of the AI's summary, full text on hover via the title attribute. */

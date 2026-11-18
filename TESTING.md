@@ -3,7 +3,7 @@
 How *Watch This for Me* is tested, what each test protects, the live failure scenarios
 we ran (and the bugs they found), and what isn't covered yet.
 
-Last updated: 2026-11-18 · 61 automated tests · 97-example AI evaluation · 7 live scenarios
+Last updated: 2026-11-18 · 84 automated tests · 97-example AI evaluation · 8 live scenarios
 
 ---
 
@@ -13,16 +13,17 @@ Last updated: 2026-11-18 · 61 automated tests · 97-example AI evaluation · 7 
 |---|---|---|---|
 | Text cleanup (HTML, dates, counts) | 11 | Real watches re-checked | ✅ ([critical bug fixed](#fixed-2026-11-18-critical--the-ai-couldnt-see-real-changes)) |
 | Diffing | 3 + 4 end-to-end | Scenario 6 | ✅ fixed 2026-11-18 (was broken on real pages) |
-| Check pipeline (detect → classify → save → prune) | 14 | Scenarios 1, 6 | ✅ |
+| Check pipeline (detect → classify → save → prune) | 19 | Scenarios 1, 6, 8 | ✅ |
 | Retries, stopping after failures, resuming | (in the 12 above) + 4 scheduling | Scenarios 1, 5 | ✅ (2 bugs found & fixed) |
 | Scheduler resilience | 1 | Scenario 3 | ✅ (1 bug found & fixed) |
-| Dashboard health & summaries | 15 | Scenarios 1, 2 | ✅ |
+| Dashboard health & summaries | 20 | Scenarios 1, 2, 8 | ✅ |
 | AI classification quality | 97-example evaluation | Scenario 6 | ⚠️ 99% on hand-made diffs; real-page diffs now correct, grounding tests still to do |
 | AI service outage | 1 | — | ⚠️ works, but outages can stop watches (open issue) |
 | Our Api going down | — | Scenario 3 | ✅ (3 fixes) |
-| Watched site going down & recovering | 1 | Scenarios 5, 6 | ✅ hard outages · ⚠️ maintenance pages |
+| Watched site going down & recovering | 3 | Scenarios 5, 6, 8 | ✅ hard outages · ✅ "not found"/maintenance pages flagged, recovery compared with the last real page (2026-11-18) |
+| Page moved, redirected or address gone | 13 fetcher + 5 pipeline | Scenario 8 | ✅ (2 silent failures found & fixed) · ⚠️ redesigns can trigger false alarms |
 | Scale / performance | — | Scenario 4 | ⚠️ falls behind at ~16 checks/min |
-| Storage (Cosmos), MCP server, web fetcher | 9 | — | ✅ |
+| Storage (Cosmos), MCP server, real-web fetcher | 9 | — | ✅ |
 | Security (prompt injection, SSRF) | — | — | ❌ not tested yet |
 | Weird inputs, cost limits | — | — | ❌ not tested yet |
 
@@ -47,9 +48,9 @@ Cosmos DB emulator container. The live scenarios are manual — scripts in
 
 ---
 
-## Automated tests (61)
+## Automated tests (84)
 
-### Check pipeline — `WatchCheckServiceTests` (14)
+### Check pipeline — `WatchCheckServiceTests` (19)
 Runs the real `WatchCheckService` against in-memory fakes ([`Fakes/TestDoubles.cs`](tests/WatchThisForMe.Tests/Fakes/TestDoubles.cs)):
 a scriptable fake website ("return this, then fail, then return that"), a fake AI, and
 in-memory stores that copy on every save/read like a real database, so a forgotten save
@@ -71,6 +72,11 @@ fails the test instead of hiding behind shared objects. Runs in under a second, 
 | `AIOutage_DoesNotLoseTheChange_ItIsClassifiedOnTheNextCheck` | a change being lost if OpenAI is down when it arrives |
 | `FirstCheckAfterNormalizerUpgrade_SavesANewBaseline_WithoutCallingTheAI` | one false "whole page changed" alert per watch after the cleanup fix |
 | `AfterTheNewBaseline_RealChangesAreDiffedLineByLine` | the upgrade swallowing the next real change |
+| `Redirect_IsRecordedOnTheWatch_AndClearedWhenItStops` | a watch silently following a redirect to the homepage (Scenario 8) |
+| `NotFoundPage_FlagsTheWatch_AndIsNeverMeaningful` | a "not found" page served with HTTP 200 looking healthy forever (Scenario 8) |
+| `PageComesBack_IsComparedWithTheLastRealPage_NotTheErrorPage` | old releases reported as new after a maintenance page (Scenario 6) — verified it fails without the fix |
+| `PageComesBackUnchanged_ClearsTheWarning_WithoutAnAICall` | a stale warning, or a wasted AI call, when the page returns as it was |
+| `NewAddress_StartsAFreshBaseline_WithoutCallingTheAI` | a false "everything changed" after the user edits the address |
 
 ### Scheduling — `WatchScheduleTests` (4) + `WatchSchedulerTests` (1)
 | Test | Protects against |
@@ -81,7 +87,7 @@ fails the test instead of hiding behind shared objects. Runs in under a second, 
 | `WatchSavedBeforeLastAttemptAtExisted_FallsBackToLastCheckedAt` | older stored watches breaking after the fix |
 | `DatabaseErrorWhileListingWatches_DoesNotKillTheScheduler` | **a database blip shutting down the whole Api** (Scenario 3) — verified it fails without the fix |
 
-### Dashboard — `WatchHealthEvaluatorTests` (7) + `WatchSummaryFactoryTests` (8)
+### Dashboard — `WatchHealthEvaluatorTests` (9) + `WatchSummaryFactoryTests` (11)
 | Test | Protects against |
 |---|---|
 | `ActiveWatchThatNeverRan_IsPending` | new watches showing as broken |
@@ -92,6 +98,16 @@ fails the test instead of hiding behind shared objects. Runs in under a second, 
 | `HealthyWatch_ShowsNoError_EvenIfAnOlderRunFailed` | stale errors on recovered watches |
 | `LastImportantChange_IsTheNewestMeaningfulOne_NotTheNewestChange` | a trivial footer edit hiding the last real finding |
 | `BaselineOnly_CountsAsNoChangesYet` / `OnlyTrivialChanges_HasALastChange_ButNoImportantOne` / `NeverRun_IsPendingWithNothingToShow` | misleading "last change" text |
+| `SuccessfulRunsOnTheWrongPage_NeedAttention` (×2) | 🟢 Healthy while checking a "not found" page or the homepage |
+| `RedirectedPage_NeedsAttention_AndSaysWhereItGoesNow` / `UnavailablePage_NeedsAttention_WithTheAIsReason` | 🟡 with no explanation or next step |
+| `SourceProblem_AfterAnOldFailure_ShowsTheCurrentProblemNotTheOldError` | a stale error hiding the real current problem |
+
+### Web fetcher (offline) — `WebPageSourceFetcherOfflineTests` (13)
+A stand-in HTTP handler plays the website, so status codes and redirects are exact and no
+network is needed. Friendly messages for 404/410, 403, 503 and an unknown domain (shown on
+the dashboard instead of "Response status code does not indicate success"); a redirect to
+another page/site/the homepage is reported; harmless redirects (http→https, `www.`, trailing
+slash, host capitalisation) are not.
 
 ### Text processing — `HtmlNormalizerTests` (5), `VolatileContentNormalizerTests` (6), `TextDifferTests` (3)
 Strip scripts/styles/tags; one line per block (heading, paragraph, list item, table row)
@@ -106,7 +122,7 @@ an edited line shows only that line's old/new versions; noise-only changes produ
 scripts/styles/tags never reach the diff. **Verified:** with the old cleanup put back, 5 of
 the new tests fail — this is the test that would have caught the critical bug.
 
-### Integration — Cosmos (2), MCP server (5), web fetcher (2)
+### Integration — Cosmos (2), MCP server (5), real-web fetcher (2)
 Real Cosmos emulator round-trips; the MCP server exposes the expected tools and its tools
 work end-to-end (incl. the real GitHub API — `GetGithubIssues_ReturnsIssueList` is known to
 be occasionally flaky); fetching a real page gives stable hashes for unchanged content.
@@ -121,7 +137,7 @@ stored diffs "contain zero lines that actually show what changed"; Scenario 6 fo
 
 ---
 
-## Live scenarios (run 2026-11-17)
+## Live scenarios (run 2026-11-17/18)
 
 Each was run against the real app, real OpenAI and the Cosmos emulator. Scenarios 4 and 6
 used a **separate Api instance with a throwaway database**, so real watches weren't touched.
@@ -194,6 +210,26 @@ can't tell "changed" from "unchanged". And, inspecting the diffs, the critical b
 ### Scenario 7 — Resume a stopped watch (live)
 Stopped watch → Resume button shown → resume → one more failure keeps it running. ✅
 
+### Scenario 8 — The page moves, is redesigned, or its address stops working (2026-11-18)
+*Script:* [`tests/scenarios/page_moved_scenario.sh`](tests/scenarios/page_moved_scenario.sh) — five watches on the fake
+site (two releases each), then each page changes in its own way with **no new release**.
+
+| What happened to the page | Before the fix | After the fix |
+|---|---|---|
+| **Redesigned** (same releases, new layout) | AI: not meaningful ✅ | AI: wrongly "new release" in **2 of 5 runs** ⚠️ (see below) |
+| **Moved** (301 → `/v2`) | Followed silently; later security release caught ✅ — but never told | Still works, plus 🟡 *"This page now redirects to …/v2. If it has moved, edit the watch's address."* |
+| **Sent to the homepage** (302) | ❌ 🟢 Healthy forever. A security release published on the real page was **missed silently** | 🟡 *"This page now redirects to http://…/"* |
+| **"Page not found" with HTTP 200** | ❌ 🟢 Healthy forever (the AI even noticed, but could only say "not meaningful") | 🟡 AI category `page_unavailable`: *"…displaying a 'page not found' message instead of the product release notes"* |
+| **"Not found" page recovers with a new release** | Whole page would look new | Diff is **only** the new release (compared with the last real page); back to 🟢 |
+| **404** | Stopped after 3, error *"Response status code does not indicate success: 404"* | Same, with *"The page wasn't found (404 Not Found). It may have moved or been removed - edit the watch's address."* |
+| **Fixing the address** | Only via the Api (`PUT`); no Edit in the UI | **Edit** on the dashboard (name, address, criteria; "use the address it now redirects to"). A new address starts a fresh baseline; saving a new address on a stopped watch resumes it. Live: 404 watch → new address → 🟢, no false change |
+
+*Still open:* **redesigns can cause false alarms.** The diff of a redesigned page shows
+`- v1.1` / `+ v1.1 Faster startup…`, and the AI sometimes reads the re-laid-out old release
+as new (2 of 5 runs after adding the `page_unavailable` rule, 0 of 1 before — too few runs
+to tell whether the new rule made it worse). Next step: correctness testing with repeated
+runs, with and without the rule.
+
 ---
 
 ## Fixed 2026-11-18: critical — the AI couldn't see real changes
@@ -225,7 +261,9 @@ from 1 line to 405, with each release on its own lines.
   3-hour outage, an expired key, or no credit stops every watch whose page changed.
 - **Scale:** sequential scheduler (~16 checks/min); dashboard over-reads (~300 KB per watch);
   two Api instances would run two schedulers and check everything twice.
-- **Maintenance pages** (HTTP 200) are treated as real content (Scenario 6).
+- **Redesigned pages** can be reported as a new release (Scenario 8, 2 of 5 runs).
+- **A watch created on an already-broken page** ("not found" from day one) isn't flagged:
+  the first snapshot is a baseline and isn't shown to the AI.
 - **Deleting a watch** leaves its snapshots and run records behind.
 
 ---

@@ -16,6 +16,8 @@ A=http://localhost:5013/api/watches
 S=http://localhost:5098
 STATE_DIR="${STATE_DIR:-${TMPDIR:-/tmp}/wtfm-scenario}"
 mkdir -p "$STATE_DIR"
+# Windows (Git Bash): give Python a path it understands (/tmp/... -> C:/Users/.../Temp/...).
+command -v cygpath >/dev/null && STATE_DIR=$(cygpath -m "$STATE_DIR")
 
 mode()    { curl -s -o /dev/null "$S/admin/mode?page=$1&mode=$2"; echo "   site $1 -> $2"; }
 publish() { curl -s -o /dev/null -G "$S/admin/publish" --data-urlencode "page=$1" --data-urlencode "text=$2"; echo "   published on $1: $2"; }

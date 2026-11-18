@@ -37,4 +37,16 @@ public class Watch
     // don't count toward dead-lettering, so a resumed watch gets a fresh set of attempts
     // instead of being stopped again by its very next failure.
     public DateTimeOffset? ResumedAt { get; set; }
+
+    // When the user last changed Source. The next check starts a fresh baseline instead of
+    // diffing the new address's page against the old address's page.
+    public DateTimeOffset? SourceChangedAt { get; set; }
+
+    // Where the page actually ended up on the last successful fetch, when the site redirected
+    // somewhere other than Source (moved page, or sent to the homepage). Null = no redirect.
+    public string? RedirectedTo { get; set; }
+
+    // The AI's explanation when the latest content looks like a "not found", error, maintenance
+    // or sign-in page instead of the real page. Null = the page looks normal.
+    public string? PageUnavailableReason { get; set; }
 }

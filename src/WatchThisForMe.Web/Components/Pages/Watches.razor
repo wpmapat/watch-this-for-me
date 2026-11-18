@@ -79,7 +79,7 @@ else
                         </span>
                         @if (summary.LastError is not null)
                         {
-                            <div class="small text-danger text-truncate error-line" title="@summary.LastError">@summary.LastError</div>
+                            <div class="small text-danger error-line" title="@summary.LastError">@summary.LastError</div>
                         }
                     </td>
                     <td>
@@ -125,9 +125,50 @@ else
                                 @(checkingIds.Contains(watch.Id) ? "Resuming..." : "Resume")
                             </button>
                         }
+                        <button class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(watch)">Edit</button>
                         <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteWatch(watch.Id)">Delete</button>
                     </td>
                 </tr>
+                @if (editingId == watch.Id)
+                {
+                    <tr class="edit-row">
+                        <td colspan="6">
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <label class="form-label small mb-0">Name</label>
+                                    <input class="form-control form-control-sm" @bind="editName" />
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label small mb-0">Address</label>
+                                    <input class="form-control form-control-sm" @bind="editSource" />
+                                    @if (watch.RedirectedTo is { } newAddress && editSource != newAddress)
+                                    {
+                                        <button class="btn btn-link btn-sm p-0" @onclick="() => editSource = newAddress">
+                                            Use the address it now redirects to
+                                        </button>
+                                    }
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label small mb-0">What counts as a meaningful change</label>
+                                    <textarea class="form-control form-control-sm" rows="2" @bind="editCriteria"></textarea>
+                                </div>
+                            </div>
+                            <div class="small text-muted mt-1">
+                                Changing the address starts fresh: the new page becomes the starting point for spotting changes.
+                            </div>
+                            @if (editError is not null)
+                            {
+                                <div class="small text-danger mt-1">@editError</div>
+                            }
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-primary" @onclick="() => SaveEdit(watch)" disabled="@isSaving">
+                                    @(isSaving ? "Saving..." : "Save")
+                                </button>
+                                <button class="btn btn-sm btn-outline-secondary" @onclick="CancelEdit" disabled="@isSaving">Cancel</button>
+                            </div>
+                        </td>
+                    </tr>
+                }
             }
         </tbody>
     </table>
@@ -275,6 +316,109 @@ else
         }
 
         await CheckNow(id);
+    }
+
+    // ---- Editing a watch (name, address, what counts as meaningful) ----
+
+    private string? editingId;
+    private string editName = string.Empty;
+    private string editSource = string.Empty;
+    private string editCriteria = string.Empty;
+    private string? editError;
+    private bool isSaving;
+
+    private void StartEdit(Watch watch)
+    {
+        editingId = watch.Id;
+        editName = watch.Name;
+        editSource = watch.Source;
+        editCriteria = watch.MeaningfulChangeCriteria;
+        editError = null;
+    }
+
+    private void CancelEdit() => editingId = null;
+
+    private async Task SaveEdit(Watch original)
+    {
+        editError = ValidateEdit(original.SourceType);
+        if (editError is not null)
+        {
+            return;
+        }
+
+        var addressChanged = editSource.Trim() != original.Source;
+        Watch? updated = null;
+        HttpResponseMessage? response = null;
+
+        isSaving = true;
+        try
+        {
+            // Start from the latest copy so fields this form doesn't show are sent back unchanged.
+            if (!await CallApiAsync(async client =>
+                {
+                    updated = await client.GetFromJsonAsync<Watch>($"api/watches/{original.Id}", JsonOptions);
+                    if (updated is null)
+                    {
+                        return;
+                    }
+
+                    updated.Name = editName.Trim();
+                    updated.Source = editSource.Trim();
+                    updated.MeaningfulChangeCriteria = editCriteria.Trim();
+                    response = await client.PutAsJsonAsync($"api/watches/{original.Id}", updated, JsonOptions);
+                }))
+            {
+                return;
+            }
+
+            if (response is null || !response.IsSuccessStatusCode)
+            {
+                editError = "Couldn't save the changes. Please try again.";
+                return;
+            }
+        }
+        finally
+        {
+            isSaving = false;
+        }
+
+        editingId = null;
+
+        // A new address on a stopped watch is almost always the fix for why it stopped, so switch
+        // it back on; either way, check straight away so the user sees whether the new address works.
+        if (addressChanged && updated!.Status == WatchStatus.DeadLettered)
+        {
+            await Resume(original.Id);
+        }
+        else if (addressChanged && updated!.Status == WatchStatus.Active)
+        {
+            await CheckNow(original.Id);
+        }
+        else
+        {
+            await LoadSummariesAsync();
+        }
+    }
+
+    private string? ValidateEdit(SourceType sourceType)
+    {
+        if (string.IsNullOrWhiteSpace(editName))
+        {
+            return "Give the watch a name.";
+        }
+
+        if (string.IsNullOrWhiteSpace(editCriteria))
+        {
+            return "Describe what counts as a meaningful change, so the agent knows what to flag.";
+        }
+
+        if (sourceType == SourceType.WebPage
+            && !(Uri.TryCreate(editSource.Trim(), UriKind.Absolute, out var uri) && (uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == Uri.UriSchemeHttp)))
+        {
+            return "The address must be a full web address starting with https://";
+        }
+
+        return string.IsNullOrWhiteSpace(editSource) ? "Enter the address to watch." : null;
     }
 
     private async Task DeleteWatch(string id)

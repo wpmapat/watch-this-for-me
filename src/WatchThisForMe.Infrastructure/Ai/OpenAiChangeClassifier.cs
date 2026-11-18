@@ -26,7 +26,12 @@ public class OpenAiChangeClassifier(OpenAiResponsesClient client) : IChangeClass
         + "change unless the diff shows an actual code signature changing. (2) When criteria asks about \"new\" "
         + "occurrences of something (new vulnerabilities, new releases, new incidents), require an actual new "
         + "instance of that thing - a change to the *process* for reporting or handling it (e.g. a new contact "
-        + "method or portal) is not itself a new occurrence.";
+        + "method or portal) is not itself a new occurrence. (3) Sometimes the new content isn't the real page "
+        + "at all: a \"page not found\" or error message, a maintenance notice, a sign-in or access-denied wall, "
+        + "or an unrelated page (such as the site's homepage) that has replaced the content the user is "
+        + "watching. Then use the category exactly \"" + ChangeCategories.PageUnavailable + "\", meaningful=false, "
+        + "and say in the summary what the page shows instead. Do NOT use it for a redesign or reworded page "
+        + "that still contains the content being watched - judge those normally.";
 
     private static readonly JsonElement Schema = JsonDocument.Parse("""
         {

@@ -312,4 +312,93 @@ public class WatchCheckServiceTests
         Assert.Contains("v2.0", result.DiffSummary);
         Assert.Equal(2, _observations.All.Count);
     }
+
+    // ---- The page moves, breaks or gets a new address (Scenario 8) ----
+
+    private static readonly ChangeClassification NotFoundVerdict =
+        new(false, ChangeCategories.PageUnavailable, 0.95, "The page now shows a 'Page not found' message.");
+
+    [Fact]
+    public async Task Redirect_IsRecordedOnTheWatch_AndClearedWhenItStops()
+    {
+        _site.ThenReturns("v1.0")
+             .ThenRedirects("Welcome to Example Corp", "https://example.com/")
+             .ThenReturns("v1.0");
+
+        await _service.CheckAsync(WatchId);
+        await _service.CheckAsync(WatchId);
+        Assert.Equal("https://example.com/", (await CurrentWatch()).RedirectedTo);
+
+        await _service.CheckAsync(WatchId);
+        Assert.Null((await CurrentWatch()).RedirectedTo);
+    }
+
+    [Fact]
+    public async Task NotFoundPage_FlagsTheWatch_AndIsNeverMeaningful()
+    {
+        _site.ThenReturns("v1.0").ThenReturns("Page not found").ThenReturns("Page not found");
+        _classifier.Result = NotFoundVerdict with { Meaningful = true }; // even if the model says so
+
+        await _service.CheckAsync(WatchId);
+        var result = await _service.CheckAsync(WatchId);
+
+        Assert.False(result!.Meaningful);
+        Assert.Equal(NotFoundVerdict.Summary, (await CurrentWatch()).PageUnavailableReason);
+
+        // Next check, same broken page: no new AI call, and the warning stays.
+        await _service.CheckAsync(WatchId);
+        Assert.Single(_classifier.Calls);
+        Assert.Equal(NotFoundVerdict.Summary, (await CurrentWatch()).PageUnavailableReason);
+    }
+
+    [Fact]
+    public async Task PageComesBack_IsComparedWithTheLastRealPage_NotTheErrorPage()
+    {
+        _site.ThenReturns("Releases\nv1.0")
+             .ThenReturns("Down for maintenance")
+             .ThenReturns("Releases\nv1.1\nv1.0");
+
+        await _service.CheckAsync(WatchId);
+        _classifier.Result = NotFoundVerdict;
+        await _service.CheckAsync(WatchId);
+
+        _classifier.Result = new(true, "new_release", 0.9, "v1.1 was released.");
+        var result = await _service.CheckAsync(WatchId);
+
+        // Only what's genuinely new since the last real page - not "Releases" and "v1.0" too.
+        Assert.Equal("+ v1.1", result!.DiffSummary);
+        Assert.Null((await CurrentWatch()).PageUnavailableReason);
+    }
+
+    [Fact]
+    public async Task PageComesBackUnchanged_ClearsTheWarning_WithoutAnAICall()
+    {
+        _site.ThenReturns("Releases\nv1.0").ThenReturns("Page not found").ThenReturns("Releases\nv1.0");
+
+        await _service.CheckAsync(WatchId);
+        _classifier.Result = NotFoundVerdict;
+        await _service.CheckAsync(WatchId);
+        await _service.CheckAsync(WatchId);
+
+        Assert.Single(_classifier.Calls); // only the "not found" page was classified
+        Assert.Null((await CurrentWatch()).PageUnavailableReason);
+    }
+
+    [Fact]
+    public async Task NewAddress_StartsAFreshBaseline_WithoutCallingTheAI()
+    {
+        _site.ThenReturns("Old site\nv1.0").ThenReturns("New site layout\nv1.0");
+
+        await _service.CheckAsync(WatchId);
+
+        var watch = await CurrentWatch();
+        watch.Source = "https://example.com/new-releases";
+        watch.SourceChangedAt = DateTimeOffset.UtcNow;
+        await _watches.UpdateAsync(watch);
+
+        var result = await _service.CheckAsync(WatchId);
+
+        Assert.Null(result!.DiffSummary);
+        Assert.Empty(_classifier.Calls);
+    }
 }

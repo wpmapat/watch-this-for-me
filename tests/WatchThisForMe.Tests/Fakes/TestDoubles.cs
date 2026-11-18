@@ -128,6 +128,13 @@ public class ScriptedSourceFetcher : ISourceFetcher
         return this;
     }
 
+    // The site answered, but only after redirecting somewhere other than the watched address.
+    public ScriptedSourceFetcher ThenRedirects(string content, string redirectedTo)
+    {
+        _responses.Enqueue(() => new SourceSnapshot(content, content, DateTimeOffset.UtcNow, redirectedTo));
+        return this;
+    }
+
     public ScriptedSourceFetcher ThenFails(string message = "No such host is known.")
     {
         _responses.Enqueue(() => throw new HttpRequestException(message));

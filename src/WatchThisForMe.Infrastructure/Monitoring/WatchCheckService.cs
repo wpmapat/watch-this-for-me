@@ -145,12 +145,16 @@ public class WatchCheckService(
         var changed = previous is null || previous.ContentHash != snapshot.ContentHash;
 
         watch.LastCheckedAt = DateTimeOffset.UtcNow;
+        watch.RedirectedTo = snapshot.RedirectedTo;
         await watchRepository.UpdateAsync(watch, cancellationToken);
 
         if (!changed)
         {
+            // Same content as last time, so the AI's verdict on it (incl. "page unavailable") stands.
             return previous;
         }
+
+        var compareWith = await FindContentToCompareWithAsync(watch, previous, snapshot, cancellationToken);
 
         var observation = new Observation
         {
@@ -161,11 +165,9 @@ public class WatchCheckService(
             NormalizedContent = snapshot.NormalizedContent,
             ContentFormatVersion = CurrentContentFormatVersion,
             Changed = true,
-            // previous.NormalizedContent can be null for an old/corrupted observation row even
-            // though the model declares it non-nullable - `required` only checked at write time.
-            DiffSummary = string.IsNullOrEmpty(previous?.NormalizedContent) || IsFromOldSingleLineFormat(previous, snapshot)
+            DiffSummary = compareWith is null
                 ? null
-                : TracedStep("diff", () => TextDiffer.Summarize(previous.NormalizedContent, snapshot.NormalizedContent))
+                : TracedStep("diff", () => TextDiffer.Summarize(compareWith.NormalizedContent, snapshot.NormalizedContent))
         };
 
         if (!string.IsNullOrEmpty(observation.DiffSummary))
@@ -180,8 +182,9 @@ public class WatchCheckService(
 
             var classification = await TracedStepAsync("classify", () => changeClassifier.ClassifyAsync(
                 observation.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, interestProfile.Interests, cancellationToken));
-            observation.Meaningful = classification.Meaningful;
             observation.Category = classification.Category;
+            // An error/"not found" page is never news in itself, whatever the model says.
+            observation.Meaningful = classification.Meaningful && classification.Category != ChangeCategories.PageUnavailable;
             observation.Confidence = classification.Confidence;
             observation.ClassificationSummary = classification.Summary;
 
@@ -193,7 +196,51 @@ public class WatchCheckService(
         var created = await TracedStepAsync("save", () => observationRepository.CreateAsync(observation, cancellationToken));
         await PruneOldObservationsAsync(watchId, cancellationToken);
 
+        // The content changed, so the previous "page unavailable" verdict no longer applies -
+        // replace it with this one's (null unless the AI says this content is broken too).
+        var unavailableReason = observation.Category == ChangeCategories.PageUnavailable ? observation.ClassificationSummary : null;
+        if (watch.PageUnavailableReason != unavailableReason)
+        {
+            watch.PageUnavailableReason = unavailableReason;
+            await watchRepository.UpdateAsync(watch, cancellationToken);
+        }
+
         return created;
+    }
+
+    // Which earlier snapshot the new content should be diffed against, or null to save it as a
+    // fresh baseline without asking the AI anything.
+    private async Task<Observation?> FindContentToCompareWithAsync(
+        Watch watch, Observation? previous, SourceSnapshot snapshot, CancellationToken cancellationToken)
+    {
+        // previous.NormalizedContent can be null for an old/corrupted observation row even
+        // though the model declares it non-nullable - `required` only checked at write time.
+        if (previous is null || string.IsNullOrEmpty(previous.NormalizedContent))
+        {
+            return null;
+        }
+
+        // The user pointed the watch at a new address: a different page, not a change to this one.
+        if (watch.SourceChangedAt is { } addressChangedAt && previous.CheckedAt < addressChangedAt)
+        {
+            return null;
+        }
+
+        var compareWith = previous;
+
+        // Last time we saw an error/"not found"/maintenance page. Compare the new content with
+        // the last REAL page instead - otherwise, when the page comes back, everything on it
+        // (old releases included) would look new.
+        if (previous.Category == ChangeCategories.PageUnavailable)
+        {
+            var history = await observationRepository.ListAsync(watch.Id, MaxObservationsPerWatch, cancellationToken);
+            compareWith = history
+                .Where(o => o.Category != ChangeCategories.PageUnavailable && !string.IsNullOrEmpty(o.NormalizedContent))
+                .Where(o => watch.SourceChangedAt is null || o.CheckedAt >= watch.SourceChangedAt)
+                .MaxBy(o => o.CheckedAt) ?? previous;
+        }
+
+        return IsFromOldSingleLineFormat(compareWith, snapshot) ? null : compareWith;
     }
 
     // One-time migration (Nov 2026): HtmlNormalizer used to flatten every page onto one line.
