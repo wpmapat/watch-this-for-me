@@ -159,10 +159,11 @@ public class WatchCheckService(
             CheckedAt = DateTimeOffset.UtcNow,
             ContentHash = snapshot.ContentHash,
             NormalizedContent = snapshot.NormalizedContent,
+            ContentFormatVersion = CurrentContentFormatVersion,
             Changed = true,
             // previous.NormalizedContent can be null for an old/corrupted observation row even
             // though the model declares it non-nullable - `required` only checked at write time.
-            DiffSummary = string.IsNullOrEmpty(previous?.NormalizedContent)
+            DiffSummary = string.IsNullOrEmpty(previous?.NormalizedContent) || IsFromOldSingleLineFormat(previous, snapshot)
                 ? null
                 : TracedStep("diff", () => TextDiffer.Summarize(previous.NormalizedContent, snapshot.NormalizedContent))
         };
@@ -194,6 +195,20 @@ public class WatchCheckService(
 
         return created;
     }
+
+    // One-time migration (Nov 2026): HtmlNormalizer used to flatten every page onto one line.
+    // Diffing an old one-line snapshot against a new multi-line one would report the whole page
+    // as changed, so the first check after the upgrade just saves a fresh baseline instead.
+    // Snapshots saved since then carry a format version, so a page that genuinely grows from one
+    // line to two is still diffed normally.
+    private static bool IsFromOldSingleLineFormat(Observation previous, SourceSnapshot current) =>
+        previous.ContentFormatVersion is null
+        && !previous.NormalizedContent.Contains('\n')
+        && current.NormalizedContent.Contains('\n');
+
+    // Bump when a change to the page cleanup (HtmlNormalizer etc.) would make old snapshots
+    // look different from new ones even though the page itself didn't change.
+    private const int CurrentContentFormatVersion = 2;
 
     private async Task PruneOldObservationsAsync(string watchId, CancellationToken cancellationToken)
     {

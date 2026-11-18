@@ -12,6 +12,10 @@ public class Observation
 
     public required string NormalizedContent { get; set; }
 
+    // Which version of the page cleanup produced NormalizedContent. Null = saved before versions
+    // existed (Nov 2026), when pages were flattened to a single line.
+    public int? ContentFormatVersion { get; set; }
+
     public required bool Changed { get; set; }
 
     public string? DiffSummary { get; set; }

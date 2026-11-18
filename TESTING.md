@@ -3,7 +3,7 @@
 How *Watch This for Me* is tested, what each test protects, the live failure scenarios
 we ran (and the bugs they found), and what isn't covered yet.
 
-Last updated: 2026-11-17 · 52 automated tests · 97-example AI evaluation · 7 live scenarios
+Last updated: 2026-11-18 · 61 automated tests · 97-example AI evaluation · 7 live scenarios
 
 ---
 
@@ -11,13 +11,13 @@ Last updated: 2026-11-17 · 52 automated tests · 97-example AI evaluation · 7 
 
 | Area | Automated tests | Live scenario tested | Status |
 |---|---|---|---|
-| Text cleanup (HTML, dates, counts) | 8 | — | ⚠️ passes, but see [open bug](#open-critical-the-ai-cant-see-real-changes) |
-| Diffing | 3 | Scenario 6 | ❌ broken on real pages (open bug) |
-| Check pipeline (detect → classify → save → prune) | 12 | Scenarios 1, 6 | ✅ |
+| Text cleanup (HTML, dates, counts) | 11 | Real watches re-checked | ✅ ([critical bug fixed](#fixed-2026-11-18-critical--the-ai-couldnt-see-real-changes)) |
+| Diffing | 3 + 4 end-to-end | Scenario 6 | ✅ fixed 2026-11-18 (was broken on real pages) |
+| Check pipeline (detect → classify → save → prune) | 14 | Scenarios 1, 6 | ✅ |
 | Retries, stopping after failures, resuming | (in the 12 above) + 4 scheduling | Scenarios 1, 5 | ✅ (2 bugs found & fixed) |
 | Scheduler resilience | 1 | Scenario 3 | ✅ (1 bug found & fixed) |
 | Dashboard health & summaries | 15 | Scenarios 1, 2 | ✅ |
-| AI classification quality | 97-example evaluation | Scenario 6 | ⚠️ 99% on hand-made diffs; blind on real pages |
+| AI classification quality | 97-example evaluation | Scenario 6 | ⚠️ 99% on hand-made diffs; real-page diffs now correct, grounding tests still to do |
 | AI service outage | 1 | — | ⚠️ works, but outages can stop watches (open issue) |
 | Our Api going down | — | Scenario 3 | ✅ (3 fixes) |
 | Watched site going down & recovering | 1 | Scenarios 5, 6 | ✅ hard outages · ⚠️ maintenance pages |
@@ -47,9 +47,9 @@ Cosmos DB emulator container. The live scenarios are manual — scripts in
 
 ---
 
-## Automated tests (52)
+## Automated tests (61)
 
-### Check pipeline — `WatchCheckServiceTests` (12)
+### Check pipeline — `WatchCheckServiceTests` (14)
 Runs the real `WatchCheckService` against in-memory fakes ([`Fakes/TestDoubles.cs`](tests/WatchThisForMe.Tests/Fakes/TestDoubles.cs)):
 a scriptable fake website ("return this, then fail, then return that"), a fake AI, and
 in-memory stores that copy on every save/read like a real database, so a forgotten save
@@ -69,6 +69,8 @@ fails the test instead of hiding behind shared objects. Runs in under a second, 
 | `ResumedWatch_GetsAFreshSetOfAttempts` | a resumed watch being stopped again by its very next failure |
 | `SiteOutage_ThenRecovery_ComparesAgainstTheLastSnapshotBeforeTheOutage` | changes published during an outage being skipped |
 | `AIOutage_DoesNotLoseTheChange_ItIsClassifiedOnTheNextCheck` | a change being lost if OpenAI is down when it arrives |
+| `FirstCheckAfterNormalizerUpgrade_SavesANewBaseline_WithoutCallingTheAI` | one false "whole page changed" alert per watch after the cleanup fix |
+| `AfterTheNewBaseline_RealChangesAreDiffedLineByLine` | the upgrade swallowing the next real change |
 
 ### Scheduling — `WatchScheduleTests` (4) + `WatchSchedulerTests` (1)
 | Test | Protects against |
@@ -91,11 +93,18 @@ fails the test instead of hiding behind shared objects. Runs in under a second, 
 | `LastImportantChange_IsTheNewestMeaningfulOne_NotTheNewestChange` | a trivial footer edit hiding the last real finding |
 | `BaselineOnly_CountsAsNoChangesYet` / `OnlyTrivialChanges_HasALastChange_ButNoImportantOne` / `NeverRun_IsPendingWithNothingToShow` | misleading "last change" text |
 
-### Text processing — `HtmlNormalizerTests` (2), `VolatileContentNormalizerTests` (6), `TextDifferTests` (3)
-Strip scripts/styles/tags; ignore noise ("5 minutes ago", dates, "123 stars", HN points) so
-it doesn't count as a change; keep real content changes; diff shows only the changed line;
-diff is truncated when huge. **Caveat:** the differ tests use multi-line input, but the
-real cleanup produces a single line — see the open bug below.
+### Text processing — `HtmlNormalizerTests` (5), `VolatileContentNormalizerTests` (6), `TextDifferTests` (3)
+Strip scripts/styles/tags; one line per block (heading, paragraph, list item, table row)
+while inline tags stay on their line and source indentation doesn't matter; ignore noise
+("5 minutes ago", dates, "123 stars", HN points) so it doesn't count as a change; diff shows
+only the changed line; diff is truncated when huge.
+
+### End-to-end page diff — `PageDiffEndToEndTests` (4)
+Realistic release page (menu, script, styles, "3 hours ago", star count) → the same cleanup
+the real fetcher uses → diff. A new release produces exactly `+ .NET 11.0 RC 3 - preview`;
+an edited line shows only that line's old/new versions; noise-only changes produce no diff;
+scripts/styles/tags never reach the diff. **Verified:** with the old cleanup put back, 5 of
+the new tests fail — this is the test that would have caught the critical bug.
 
 ### Integration — Cosmos (2), MCP server (5), web fetcher (2)
 Real Cosmos emulator round-trips; the MCP server exposes the expected tools and its tools
@@ -180,14 +189,14 @@ maintenance" page with HTTP 200.
 | Site recovers | ✅ both v1.1 and v2.0 caught as one change; AI summary mentions both | ⚠️ compared against the maintenance page, so old v1.0 also looked new |
 
 *Also found:* `POST /check` returns the previous snapshot when nothing changed, so callers
-can't tell "changed" from "unchanged". And, inspecting the diffs, the critical bug below.
+can't tell "changed" from "unchanged". And, inspecting the diffs, the critical bug below (now fixed).
 
 ### Scenario 7 — Resume a stopped watch (live)
 Stopped watch → Resume button shown → resume → one more failure keeps it running. ✅
 
 ---
 
-## Open: critical — the AI can't see real changes
+## Fixed 2026-11-18: critical — the AI couldn't see real changes
 
 Found in Scenario 6. `HtmlNormalizer` collapses **all** whitespace, including line breaks,
 so every real page becomes **one line** (13–15k characters). The differ compares lines, so
@@ -199,9 +208,16 @@ from the actual change. Every stored diff on that watch was truncated.
 
 Unit tests and the evaluation didn't catch it because each tests its own piece with
 hand-made multi-line input; the bug only appears when real HTML flows through the whole
-chain. **Fix planned next:** keep line structure in the cleanup, add an end-to-end test
-(real-looking HTML → cleanup → diff → contains only the new release), and re-baseline
-existing watches so the format change doesn't cause one false alert each.
+chain.
+
+**Fix:** the cleanup now keeps one line per block; `PageDiffEndToEndTests` covers the whole
+chain. Each saved snapshot records its cleanup format (`ContentFormatVersion`); the first
+check after the upgrade sees an unlabeled one-line snapshot and quietly saves a new
+baseline instead of reporting "whole page changed". (A first version guessed old snapshots
+by shape alone — 3 existing tests failed because a page that really grows from one line to
+two would have lost its change; the label fixed that.) **Live check:** all 3 real watches
+re-baselined on their next check with no diff and no AI call; the .NET releases page went
+from 1 line to 405, with each release on its own lines.
 
 ## Other open issues
 

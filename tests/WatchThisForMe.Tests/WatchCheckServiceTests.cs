@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging.Abstractions;
 using WatchThisForMe.Core.Executions;
+using WatchThisForMe.Core.Observations;
 using WatchThisForMe.Core.Watches;
 using WatchThisForMe.Infrastructure.Monitoring;
 using WatchThisForMe.Tests.Fakes;
@@ -74,6 +75,46 @@ public class WatchCheckServiceTests
 
         Assert.Single(_observations.All);
         Assert.Empty(_classifier.Calls);
+    }
+
+    // An observation saved by the old normalizer: no format version, whole page on one line.
+    private Task SeedSnapshotFromBeforeTheUpgrade(string content) =>
+        _observations.CreateAsync(new Observation
+        {
+            Id = "legacy-1",
+            WatchId = WatchId,
+            CheckedAt = DateTimeOffset.UtcNow.AddHours(-1),
+            ContentHash = content,
+            NormalizedContent = content,
+            Changed = true
+        });
+
+    [Fact]
+    public async Task FirstCheckAfterNormalizerUpgrade_SavesANewBaseline_WithoutCallingTheAI()
+    {
+        // Old snapshot: whole page on one line (old normalizer). New snapshot: one line per block.
+        await SeedSnapshotFromBeforeTheUpgrade("Releases v1.0 Footer");
+        _site.ThenReturns("Releases\nv1.0\nFooter");
+
+        var result = await _service.CheckAsync(WatchId);
+
+        Assert.Equal(2, _observations.All.Count);
+        Assert.Null(result!.DiffSummary);
+        Assert.Empty(_classifier.Calls);
+    }
+
+    [Fact]
+    public async Task AfterTheNewBaseline_RealChangesAreDiffedLineByLine()
+    {
+        await SeedSnapshotFromBeforeTheUpgrade("Releases v1.0 Footer");
+        _site.ThenReturns("Releases\nv1.0\nFooter")
+             .ThenReturns("Releases\nv1.1\nv1.0\nFooter");
+
+        await _service.CheckAsync(WatchId);
+        var result = await _service.CheckAsync(WatchId);
+
+        Assert.Equal("+ v1.1", result!.DiffSummary);
+        Assert.Equal("+ v1.1", Assert.Single(_classifier.Calls).Diff);
     }
 
     [Fact]
