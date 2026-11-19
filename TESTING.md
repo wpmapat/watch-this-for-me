@@ -3,7 +3,7 @@
 How *Watch This for Me* is tested, what each test protects, the live failure scenarios
 we ran (and the bugs they found), and what isn't covered yet.
 
-Last updated: 2026-11-19 · 137 automated tests · 97-example AI evaluation · 10 live scenarios
+Last updated: 2026-11-19 · 150 automated tests · 97-example AI evaluation · 11 live scenarios
 
 ---
 
@@ -27,6 +27,7 @@ Last updated: 2026-11-19 · 137 automated tests · 97-example AI evaluation · 1
 | Cost & storage growth | 3 + 2 Cosmos | Scenario 9 (audit) | ✅ noisy random-id pages fixed · run records expire after 30 days · deleting a watch removes its history · ⚠️ no AI budget/limit yet |
 | Security: SSRF (watching internal addresses) | 40 | Scenario 10 | ✅ found (attacks worked) & fixed 2026-11-19 |
 | Security: prompt injection | — | — | ❌ not tested yet |
+| Notifications (in-app; email at deploy) | 11 + 2 Cosmos | Scenario 11 | ✅ built 2026-11-19: never lost, never twice, old changes never notified |
 | Weird inputs | — | — | ❌ not tested yet |
 
 ---
@@ -50,7 +51,7 @@ Cosmos DB emulator container. The live scenarios are manual — scripts in
 
 ---
 
-## Automated tests (137)
+## Automated tests (150)
 
 ### Check pipeline — `WatchCheckServiceTests` (21)
 Runs the real `WatchCheckService` against in-memory fakes ([`Fakes/TestDoubles.cs`](tests/WatchThisForMe.Tests/Fakes/TestDoubles.cs)):
@@ -113,6 +114,21 @@ network is needed. Friendly messages for 404/410, 403, 503 and an unknown domain
 the dashboard instead of "Response status code does not indicate success"); a redirect to
 another page/site/the homepage is reported; harmless redirects (http→https, `www.`, trailing
 slash, host capitalisation) are not.
+
+### Notifications — `NotificationTests` (11) + `CosmosNotificationRepositoryTests` (2)
+Through the full check pipeline with fakes: a meaningful change makes exactly one investigated
+notice; a first snapshot, a trivial change and an error page never do (error pages not even
+with the "Always" policy); the agent disagreeing means no notice, with the reason recorded;
+"Always" + trivial change gives a short notice without investigating.
+- **Never lost:** AI down while making the notice → the check still succeeds, the change stays
+  "pending", and the next check (page unchanged) sends it; two changes during an outage both
+  arrive, oldest first.
+- **Never twice:** a crash after saving the notice but before clearing the mark → the retry
+  finds it, makes no second one and doesn't pay the AI again; two checks at once → one notice.
+- **Old data:** changes saved before notifications existed are never notified (no flood after
+  upgrading).
+- Cosmos itself refuses a second notice with the same Id; the pending mark survives an update.
+- *Mutation check:* removing the retry-on-unchanged-check or the "already made?" lookup makes 3 tests fail.
 
 ### SSRF protection — `SsrfProtectionTests` (40)
 - 18 internal addresses judged not public (this machine, private ranges, cloud metadata
@@ -311,6 +327,17 @@ scripts only (their fake site runs on localhost).
 a 400 and a clear reason; the watch saved before the fix failed its next check with "This
 address points to a private or internal network…"; `https://example.com` still fetched normally.
 
+### Scenario 11 — First real notice, end to end (2026-11-19)
+Fake site + separate Api, real OpenAI and the real investigating agent (MCP tools). Baseline
+v1.0 → published "v2.0: Fixes CVE-2026-1234, an authentication bypass…" → the check took 19 s
+and produced **one** notice: *"What changed: A new release (v2.0)… Why it matters: This update
+addresses CVE-2026-1234, an authentication bypass vulnerability… requires immediate upgrade"*,
+category `security_fix`, confidence 95%, evidence = the diff + the previous snapshot the agent
+fetched. A third check (unchanged) left it at one notice.
+
+*Noticed:* the investigation adds ~15 s to a check that finds a meaningful change, and the
+scheduler runs checks one at a time (see Scale) - fine for a handful of watches.
+
 ---
 
 ## Fixed 2026-11-18: critical — the AI couldn't see real changes
@@ -345,6 +372,9 @@ from 1 line to 405, with each release on its own lines.
 - **Redesigned pages** can be reported as a new release (Scenario 8, 2 of 5 runs).
 - **A watch created on an already-broken page** ("not found" from day one) isn't flagged:
   the first snapshot is a baseline and isn't shown to the AI.
+- **Notices only in the app:** no email yet, no "unread" marker. A notice that keeps failing
+  stays pending without a visible warning (only a log line), and is dropped if 10 newer
+  changes push it out of the kept history first.
 - **No AI budget:** a page that genuinely changes on every check (e.g. a live feed) still
   costs 3 AI calls per check, with no daily limit or "this watch is noisy" warning.
 
@@ -368,5 +398,5 @@ fails; what's left is the fix plus a re-test.
 | 9 | **Web UI** | Automated tests for the dashboard (e.g. bUnit for Blazor): badges, errors, Edit/Resume/Check now, the "service down" banner | ❌ manual clicks only |
 | 10 | **Concurrency** | Two things touching one watch at once: editing, resuming or deleting it *while* the scheduler is checking it; "Check now" clicked twice; two browser tabs saving different edits (last write silently wins?) | ❌ not tested |
 | 11 | **Upgrades & stored-data changes** | Every change to what's stored must work with data saved by the old version: old snapshots (cleanup format v1/v2 → v3, done today), watches saved before new fields existed, containers created before new settings (TTL), renamed AI categories. Make it a rule: each such change ships with an "old data" test | ⚠️ 3 cases covered today, no general rule yet |
-| 12 | **Notifications** | Delivery, no duplicates, only meaningful changes, what happens when the channel is down | ⛔ not built — nothing is sent yet ("Email" is only a stored setting) |
+| 12 | **Notifications** | Delivery, no duplicates, only meaningful changes, what happens when the channel is down | ✅ in-app version built & tested 2026-11-19 (Scenario 11) · ⏸ email delivery + "email service down" tests at deploy time |
 | 13 | **Deployment / Azure** | Entra sign-in, Key Vault, managed identity for Cosmos, `/health` without sign-in, the containers' 30-day TTL set by the deployment | ⏸ when deploying (deferred until just before interviews) |

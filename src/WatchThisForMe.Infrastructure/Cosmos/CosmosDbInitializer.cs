@@ -31,6 +31,10 @@ public class CosmosDbInitializer(CosmosClient client, IOptions<CosmosOptions> op
             new ContainerProperties(_options.InterestProfileContainerName, partitionKeyPath: "/id"),
             cancellationToken: cancellationToken);
 
+        await database.Database.CreateContainerIfNotExistsAsync(
+            new ContainerProperties(_options.NotificationsContainerName, partitionKeyPath: "/watchId"),
+            cancellationToken: cancellationToken);
+
         var retentionSeconds = (int)TimeSpan.FromDays(_options.ExecutionRetentionDays).TotalSeconds;
         var executions = await database.Database.CreateContainerIfNotExistsAsync(
             new ContainerProperties(_options.ExecutionsContainerName, partitionKeyPath: "/watchId") { DefaultTimeToLive = retentionSeconds },

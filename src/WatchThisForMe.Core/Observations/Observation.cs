@@ -31,4 +31,13 @@ public class Observation
     // Embedding of ClassificationSummary - lets tomorrow's RAG retrieval find semantically
     // similar past observations instead of only exact lookups by watch id.
     public float[]? Embedding { get; set; }
+
+    // True while a notice about this change still has to be made (set when the change is saved,
+    // per the watch's NotificationPolicy; cleared once the notice exists or is ruled out). Stays
+    // true if making it fails, so the next check retries. Null on changes saved before
+    // notifications existed (Nov 2026) - those are never notified.
+    public bool? NotificationPending { get; set; }
+
+    // What happened to the notice, in plain words ("Sent", or why none was sent).
+    public string? NotificationOutcome { get; set; }
 }

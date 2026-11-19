@@ -47,10 +47,11 @@ public class WatchSchedulerTests
 
         var watches = new FlakyListWatchRepository(store, failuresBeforeRecovery: 2);
         var executions = new InMemoryWatchExecutionRepository();
+        var observations = new InMemoryObservationRepository();
         var checkService = new WatchCheckService(
-            watches, new InMemoryObservationRepository(), new ScriptedSourceFetcher().ThenReturns("v1.0"),
+            watches, observations, new ScriptedSourceFetcher().ThenReturns("v1.0"),
             new FakeChangeClassifier(), new FakeEmbeddingGenerator(), new FakeInterestProfileRepository(),
-            executions, NullLogger<WatchCheckService>.Instance);
+            executions, TestNotifier.Create(observations), NullLogger<WatchCheckService>.Instance);
 
         var scheduler = new WatchScheduler(
             watches, checkService,

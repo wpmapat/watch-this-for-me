@@ -23,6 +23,8 @@ public class CosmosOptions
 
     public string ExecutionsContainerName { get; set; } = "Executions";
 
+    public string NotificationsContainerName { get; set; } = "Notifications";
+
     // Run records (one per check) expire automatically after this many days via the container's
     // default time-to-live - an hourly watch writes ~8,760 a year, and only recent ones matter.
     // In Azure the container is created by the deployment, which must set the same TTL.

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using WatchThisForMe.Infrastructure.Notifications;
 
 namespace WatchThisForMe.Infrastructure.Monitoring;
 
@@ -8,6 +9,7 @@ public static class MonitoringServiceCollectionExtensions
     public static IServiceCollection AddMonitoring(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<WatchSchedulerOptions>(configuration.GetSection(WatchSchedulerOptions.SectionName));
+        services.AddSingleton<NotificationService>();
         services.AddSingleton<WatchCheckService>();
         services.AddHostedService<WatchScheduler>();
 

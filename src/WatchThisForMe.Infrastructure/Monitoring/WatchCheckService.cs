@@ -8,6 +8,7 @@ using WatchThisForMe.Core.Sources;
 using WatchThisForMe.Core.Watches;
 using WatchThisForMe.Infrastructure.Diffing;
 using WatchThisForMe.Infrastructure.Embeddings;
+using WatchThisForMe.Infrastructure.Notifications;
 using WatchThisForMe.Infrastructure.Observability;
 using WatchThisForMe.Infrastructure.Sources;
 
@@ -21,6 +22,7 @@ public class WatchCheckService(
     IEmbeddingGenerator embeddingGenerator,
     IInterestProfileRepository interestProfileRepository,
     IWatchExecutionRepository executionRepository,
+    NotificationService notificationService,
     ILogger<WatchCheckService> logger)
 {
     private const int MaxObservationsPerWatch = 10;
@@ -152,6 +154,8 @@ public class WatchCheckService(
         if (!changed)
         {
             // Same content as last time, so the AI's verdict on it (incl. "page unavailable") stands.
+            // A notice that failed last time is retried even though nothing new happened.
+            await notificationService.NotifyPendingAsync(watch, cancellationToken);
             return previous;
         }
 
@@ -194,6 +198,9 @@ public class WatchCheckService(
             observation.Embedding = await TracedStepAsync("embed_summary", () => embeddingGenerator.GenerateAsync(classification.Summary, cancellationToken));
         }
 
+        // Decided now and stored with the change, so a failure later can't make us forget it.
+        observation.NotificationPending = NotificationService.ShouldNotify(watch, observation);
+
         var created = await TracedStepAsync("save", () => observationRepository.CreateAsync(observation, cancellationToken));
         await PruneOldObservationsAsync(watchId, cancellationToken);
 
@@ -205,6 +212,9 @@ public class WatchCheckService(
             watch.PageUnavailableReason = unavailableReason;
             await watchRepository.UpdateAsync(watch, cancellationToken);
         }
+
+        // This change's notice, plus any earlier one that failed and is still owed.
+        await TracedStepAsync("notify", async () => { await notificationService.NotifyPendingAsync(watch, cancellationToken); return 0; });
 
         return created;
     }

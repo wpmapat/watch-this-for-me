@@ -26,7 +26,7 @@ public class WatchCheckServiceTests
     {
         _service = new WatchCheckService(
             _watches, _observations, _site, _classifier, _embeddings,
-            new FakeInterestProfileRepository(), _executions, NullLogger<WatchCheckService>.Instance);
+            new FakeInterestProfileRepository(), _executions, TestNotifier.Create(_observations), NullLogger<WatchCheckService>.Instance);
 
         _watches.CreateAsync(new Watch
         {

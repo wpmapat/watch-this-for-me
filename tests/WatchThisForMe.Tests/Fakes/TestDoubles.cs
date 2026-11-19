@@ -1,9 +1,12 @@
 using System.Text.Json;
+using Microsoft.Extensions.Logging.Abstractions;
+using WatchThisForMe.Core.Notifications;
 using WatchThisForMe.Core.Executions;
 using WatchThisForMe.Core.Observations;
 using WatchThisForMe.Core.Preferences;
 using WatchThisForMe.Core.Sources;
 using WatchThisForMe.Core.Watches;
+using WatchThisForMe.Infrastructure.Notifications;
 
 namespace WatchThisForMe.Tests.Fakes;
 
@@ -72,6 +75,13 @@ public class InMemoryObservationRepository : IObservationRepository
         }
 
         return Task.FromResult<IReadOnlyList<Observation>>(mostRecentFirst.Select(Copy.Of).ToList());
+    }
+
+    public Task<Observation> UpdateAsync(Observation observation, CancellationToken cancellationToken = default)
+    {
+        var index = _observations.FindIndex(o => o.Id == observation.Id && o.WatchId == observation.WatchId);
+        _observations[index] = Copy.Of(observation); // throws if missing, like Cosmos' Replace
+        return Task.FromResult(Copy.Of(observation));
     }
 
     public Task DeleteAsync(string id, string watchId, CancellationToken cancellationToken = default)
@@ -198,4 +208,80 @@ public class FakeInterestProfileRepository : IInterestProfileRepository
 
     public Task<InterestProfile> UpdateAsync(InterestProfile profile, CancellationToken cancellationToken = default) =>
         Task.FromResult(profile);
+}
+
+public class InMemoryNotificationRepository : INotificationRepository
+{
+    private readonly List<WatchNotification> _notifications = [];
+
+    public IReadOnlyList<WatchNotification> All => _notifications.Select(Copy.Of).ToList();
+
+    // Like Cosmos' Create: a second notice with the same Id is refused.
+    public Task<bool> TryCreateAsync(WatchNotification notification, CancellationToken cancellationToken = default)
+    {
+        if (_notifications.Any(n => n.Id == notification.Id && n.WatchId == notification.WatchId))
+        {
+            return Task.FromResult(false);
+        }
+
+        _notifications.Add(Copy.Of(notification));
+        return Task.FromResult(true);
+    }
+
+    public Task<WatchNotification?> GetAsync(string id, string watchId, CancellationToken cancellationToken = default) =>
+        Task.FromResult(_notifications.FirstOrDefault(n => n.Id == id && n.WatchId == watchId) is { } n ? Copy.Of(n) : null);
+
+    public Task<IReadOnlyList<WatchNotification>> ListRecentAsync(int maxCount, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<WatchNotification>>(_notifications.OrderByDescending(n => n.CreatedAt).Take(maxCount).Select(Copy.Of).ToList());
+
+    public Task DeleteAllAsync(string watchId, CancellationToken cancellationToken = default)
+    {
+        _notifications.RemoveAll(n => n.WatchId == watchId);
+        return Task.CompletedTask;
+    }
+}
+
+// Plays the investigating agent: agrees the change matters (and writes a notice) unless told otherwise.
+public class FakeInvestigationAgent : IInvestigationAgent
+{
+    public int Calls { get; private set; }
+
+    public bool AgreesItMatters { get; set; } = true;
+
+    // When set, every call throws this - simulates the AI service being down.
+    public Exception? FailWith { get; set; }
+
+    // Lets a test hold the agent mid-investigation (to overlap two checks).
+    public Func<Task>? BeforeAnswering { get; set; }
+
+    public async Task<InvestigationResult> InvestigateAsync(
+        string watchId, string diffSummary, string meaningfulChangeCriteria,
+        IReadOnlyList<SimilarObservation> similarPastObservations, string userInterests,
+        CancellationToken cancellationToken = default)
+    {
+        Calls++;
+        if (BeforeAnswering is not null)
+        {
+            await BeforeAnswering();
+        }
+
+        if (FailWith is not null)
+        {
+            throw FailWith;
+        }
+
+        return AgreesItMatters
+            ? new InvestigationResult(
+                new ChangeClassification(true, "new_release", 0.95, "Confirmed: a new release."),
+                new Notification("v2.0 was released.", "You asked about new releases.", 0.95, [new EvidenceItem("diff", diffSummary)]))
+            : new InvestigationResult(new ChangeClassification(false, "cosmetic", 0.8, "Only the layout changed."), null);
+    }
+}
+
+public static class TestNotifier
+{
+    public static NotificationService Create(
+        IObservationRepository observations, INotificationRepository? notifications = null, IInvestigationAgent? agent = null) =>
+        new(observations, notifications ?? new InMemoryNotificationRepository(), agent ?? new FakeInvestigationAgent(),
+            new FakeInterestProfileRepository(), NullLogger<NotificationService>.Instance);
 }

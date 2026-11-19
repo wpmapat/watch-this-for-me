@@ -1,0 +1,106 @@
+@page "/notifications"
+@rendermode InteractiveServer
+@using System.Net.Http.Json
+@using System.Text.Json
+@using WatchThisForMe.Core.Notifications
+@inject ApiClient Api
+
+<PageTitle>Notifications</PageTitle>
+
+<h1>Notifications</h1>
+<p class="text-muted mb-4">
+    Changes your watches found that match what you asked to hear about, checked a second time by
+    the investigating agent before you see them. (Email delivery comes later; for now they appear here.)
+</p>
+
+@if (serviceProblem is not null)
+{
+    <div class="alert alert-warning d-flex justify-content-between align-items-center" role="alert">
+        <strong>@serviceProblem</strong>
+        <button class="btn btn-sm btn-outline-dark ms-3" @onclick="LoadAsync">Try again</button>
+    </div>
+}
+
+@if (notifications is null)
+{
+    @if (serviceProblem is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+}
+else if (notifications.Count == 0)
+{
+    <p>No notifications yet. When a watched page changes in a way that matters to you, it shows up here.</p>
+}
+else
+{
+    @foreach (var n in notifications)
+    {
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between flex-wrap gap-2">
+                    <h5 class="card-title mb-1">@n.WatchName</h5>
+                    <span class="text-muted small" title="@n.CreatedAt.ToLocalTime().ToString("f")">@n.ChangeDetectedAt.ToLocalTime().ToString("g")</span>
+                </div>
+                @if (!string.IsNullOrEmpty(n.Category))
+                {
+                    <span class="badge text-bg-secondary mb-2">@n.Category.Replace('_', ' ')</span>
+                }
+                <p class="mb-1"><strong>What changed:</strong> @n.WhatChanged</p>
+                <p class="mb-2"><strong>Why it matters to you:</strong> @n.WhyItMatters</p>
+                @if (n.Evidence.Count > 0)
+                {
+                    <details>
+                        <summary class="small">Evidence (@n.Evidence.Count)</summary>
+                        <ul class="small mt-2 mb-0">
+                            @foreach (var e in n.Evidence)
+                            {
+                                <li><strong>@e.Source:</strong> <span style="white-space: pre-wrap">@Shorten(e.Detail)</span></li>
+                            }
+                        </ul>
+                    </details>
+                }
+                <div class="small text-muted mt-2">
+                    <a href="@n.Source" target="_blank" rel="noopener noreferrer">Open the page</a>
+                    @if (n.Confidence is { } confidence)
+                    {
+                        <span> · confidence @confidence.ToString("P0")</span>
+                    }
+                    @if (!n.Investigated)
+                    {
+                        <span> · minor change (not investigated)</span>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
+
+    private List<WatchNotification>? notifications;
+    private string? serviceProblem;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            var client = await Api.CreateAsync();
+            notifications = await client.GetFromJsonAsync<List<WatchNotification>>("api/notifications", JsonOptions) ?? [];
+            serviceProblem = null;
+        }
+        catch (HttpRequestException ex)
+        {
+            serviceProblem = ex.StatusCode is null ? "We can't reach the monitoring service right now." : "The monitoring service ran into a problem.";
+        }
+        catch (TaskCanceledException)
+        {
+            serviceProblem = "The monitoring service is taking too long to respond.";
+        }
+    }
+
+    private static string Shorten(string text) => text.Length <= 600 ? text : text[..600] + " …";
+}

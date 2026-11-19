@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using WatchThisForMe.Api.Contracts;
 using WatchThisForMe.Core.Executions;
+using WatchThisForMe.Core.Notifications;
 using WatchThisForMe.Core.Observations;
 using WatchThisForMe.Core.Preferences;
 using WatchThisForMe.Core.Watches;
@@ -20,7 +21,8 @@ public class WatchesController(
     IInvestigationAgent investigationAgent,
     IInterestProfileRepository interestProfileRepository,
     IWatchExecutionRepository executionRepository,
-    SourceAddressValidator sourceValidator) : ControllerBase
+    SourceAddressValidator sourceValidator,
+    INotificationRepository notificationRepository) : ControllerBase
 {
     // 400 with the reason in "detail", which the web app shows to the user.
     private async Task<ActionResult?> RejectBadSourceAsync(SourceType sourceType, string source, CancellationToken cancellationToken) =>
@@ -136,6 +138,7 @@ public class WatchesController(
         // finishes the job instead of leaving orphaned records nobody can reach.
         await observationRepository.DeleteAllAsync(id, cancellationToken);
         await executionRepository.DeleteAllAsync(id, cancellationToken);
+        await notificationRepository.DeleteAllAsync(id, cancellationToken);
         await repository.DeleteAsync(id, cancellationToken);
         return NoContent();
     }

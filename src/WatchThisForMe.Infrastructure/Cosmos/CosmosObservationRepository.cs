@@ -62,6 +62,12 @@ public class CosmosObservationRepository : IObservationRepository
         return results;
     }
 
+    public async Task<Observation> UpdateAsync(Observation observation, CancellationToken cancellationToken = default)
+    {
+        var response = await _container.ReplaceItemAsync(observation, observation.Id, new PartitionKey(observation.WatchId), cancellationToken: cancellationToken);
+        return response.Resource;
+    }
+
     public async Task DeleteAsync(string id, string watchId, CancellationToken cancellationToken = default)
     {
         await _container.DeleteItemAsync<Observation>(id, new PartitionKey(watchId), cancellationToken: cancellationToken);
