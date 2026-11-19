@@ -297,6 +297,36 @@ switches the watch back on and checks it straight away. Resuming gives a
 **fresh set of 3 attempts** — otherwise the old failures would still count,
 and the very next hiccup would stop it again.
 
+**The bug that made the AI blind (Week 6, fixed Nov 18)** — the page
+cleanup turned every real web page into *one long line*. A line-by-line
+diff of one line against one line is just "whole old page / whole new
+page", and it was cut off at 4,000 characters — so on real pages the AI
+was mostly judging the menu and header, never the new release. Our unit
+tests missed it because they fed the differ hand-made text that already had
+line breaks. Now the cleanup keeps one line per heading, paragraph and list
+item, and an end-to-end test runs real-looking HTML through the same path
+the app uses. Lesson: test the pieces *joined together*, with realistic input.
+
+Saved snapshots now carry a **format version**. When the cleanup changes,
+old snapshots are either upgraded in place or (if they can't be) used as a
+fresh starting point — otherwise every watch would raise one false alert
+just because *we* changed, not the page.
+
+**When the page moves or breaks (Week 6)** — a site that answers "200 OK"
+isn't necessarily fine: it may redirect to its homepage, or show a "page not
+found" message with a success code. The app now notices both (the redirect
+from the final address, the "not found" page from the AI's new
+`page_unavailable` category) and shows 🟡 with the reason. Fetch errors are
+in plain words ("The page wasn't found (404)…"), there's an **Edit** button
+to fix the address, and once the page is back, it's compared with the last
+*real* version, not with the error page.
+
+**What watching costs (Week 6 cost audit)** — a check where nothing changed
+costs no AI at all; a change costs 3 small AI calls (about $0.0004). The
+audit found one page that "changed" every hour only because it prints a
+random trace id — now random ids are masked like dates and counts. Run
+records now expire after 30 days, and deleting a watch deletes its history.
+
 ## How to see the shape of the whole system
 
 A visual class diagram of the current architecture was published as a
@@ -306,7 +336,9 @@ ask for a refreshed one if it's been a while since new pieces were added.
 ## What's not built yet
 
 No actual notification delivery yet (email/Slack — the setting exists,
-nothing sends yet), and nothing is deployed anywhere outside this machine —
+nothing sends yet; a small in-app version is planned this week, real email
+at deploy time), no protection yet against watching internal addresses
+(SSRF — next up), and nothing is deployed anywhere outside this machine —
 the Key Vault, Managed Identity and Entra sign-in code is built and switches
 on by configuration, but isn't proven against real Azure resources until
 they're created during deployment.

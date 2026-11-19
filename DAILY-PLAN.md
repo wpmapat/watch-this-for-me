@@ -19,7 +19,7 @@ last bit into the next session if something runs over.
 
 - **Active week:** Week 6 — Polish (Azure deploy deferred until just before interviews)
 - **Active branch:** `feature/week6-polish`
-- **Last updated:** 2026-11-17
+- **Last updated:** 2026-11-19
 - **Week 1 status:** Complete and merged to `master` (PR #2)
 - **Week 2 status:** Complete and merged to `master` (PR #3)
 - **Week 3 status:** Complete and merged to `master` (PR #4)
@@ -46,6 +46,8 @@ last bit into the next session if something runs over.
 - [x] Dashboard UI polish — health badges, last important change per watch, Check now, product-purpose copy; plus a scheduler retry bug fix found while testing failure (details in the Week 6 section below)
 - [x] Extra (Nov 17): failure & load testing — 19 pipeline tests (50 total), 40-watch load test, Api-down handling (friendly message, `/health`, scheduler no longer crashes the Api on a database error)
 - [x] Extra (Nov 17): Resume button for stopped/paused watches (fresh set of 3 attempts after resuming); test proving a recovered site is compared against its last pre-outage snapshot
+- [x] Extra (Nov 18): fixed the critical diff bug (AI never saw the real change on real pages); moved/broken pages flagged + Edit button; cost audit fixes; full testing plan in `TESTING.md`
+- [ ] Next: SSRF fix, then a small in-app notifications build, then the rest of the testing plan
 
 ---
 
@@ -252,21 +254,24 @@ real product.
 
   **Also Nov 17 — failure & load testing:** 19 fast in-memory tests for the check pipeline, dashboard rows and scheduler (fakes in `tests/.../Fakes/TestDoubles.cs`; 50 tests total). Load test (40 watches, every check a meaningful change, real OpenAI, separate Api + database): 0 failures, but only ~16 checks/min — sequential scheduler is the bottleneck (each watch checked every ~160s vs 60s target); dashboard up to 1.1s at 40 watches; no OpenAI rate limits, Cosmos emulator throttled. Api-down test led to: friendly "can't reach the monitoring service" banner on the Watches page, anonymous `/health` liveness endpoint, and a fix so a database error while the scheduler lists watches no longer shuts down the whole Api. Remaining known issues (AI outages count toward dead-lettering, sequential scheduler, dashboard over-reads, multi-instance duplicates, orphaned records on delete) deferred — candidates for Fri "Final polish".
 
-**Next session (Nov 18) — FIRST: fix the critical diff bug, then testing plan.**
-Found Nov 17 (see `TESTING.md`): the HTML cleanup flattens every real page onto one line,
-so every diff is "whole old page / whole new page", cut off at 4,000 characters — the AI
-never sees the actual change on real pages. Do this before the execution timeline, because
-the timeline will display the AI's reasoning.
-- [ ] Fix: keep line structure in `HtmlNormalizer` (line breaks at headings, paragraphs, list items, etc.)
-- [ ] End-to-end test: real-looking HTML → cleanup → diff → contains only the new release
-- [ ] Re-baseline existing watches so the format change doesn't cause one false alert each
-- [ ] Re-check the .NET releases watch: does the AI now see the real change?
+**Wed Nov 18 — Critical diff bug + page-moved fixes + cost audit (done).**
+Found Nov 17 (see `TESTING.md`): the HTML cleanup flattened every real page onto one line,
+so every diff was "whole old page / whole new page", cut off at 4,000 characters — the AI
+never saw the actual change on real pages.
+- [x] Fix: keep line structure in `HtmlNormalizer` (one line per heading, paragraph, list item, etc.) — 39e9848
+- [x] End-to-end test: real-looking HTML → cleanup → diff → contains only the new release
+- [x] Old one-line snapshots get a fresh baseline instead of one false alert (snapshots now carry a format version)
+- [x] Scenario 8 — page moved or broken: redirects and "page not found"-style pages now show 🟡 with the reason; friendly fetch errors (404, 403, 5xx, unknown domain); Edit button in the UI; after a broken spell the diff is against the last *real* page — 3f14c73
+- [x] Cost audit (Scenario 9): random ids (e.g. Microsoft's trace id) no longer count as changes; run records expire after 30 days; deleting a watch deletes its history — 11b8962 (97 tests)
+- [x] Full prioritized testing plan written in `TESTING.md` (13 areas, incl. concurrency and upgrade testing) — 2f9837f
 
-**Testing plan (after the fix; full detail in `TESTING.md`):**
-- [ ] Correctness/grounding — "canary" releases with unique words; small change on a big page, trivial change, look-alike change; 3 runs each; add real-page examples to the evaluation
-- [ ] Security — prompt injection via watched page text; SSRF (refuse `localhost`, private IPs, `169.254.169.254`) — must be fixed before deploying
-- [ ] Weird inputs — page over 2 MB, JavaScript-only page, non-English, PDF/image URL, redirect loop, slow page, nonsense watch request
-- [ ] Cost — worst-case AI calls/tokens per watch per day; minimum check frequency; daily AI budget
+**Thu Nov 19 → rest of week — testing plan in table order (full detail in `TESTING.md`):**
+- [ ] 1. SSRF — refuse `localhost`, private IPs, `169.254.169.254`, and redirects into them — must be fixed before deploying
+- [ ] Notifications (small version, after SSRF): when a change matters, investigate automatically and produce the notification; in-app Notifications list; a retried check never notifies twice; tests. Real email waits for the Azure deploy.
+- [ ] 2. Prompt injection via watched page text
+- [ ] 3. Correctness/grounding — redesign false alarm (2 of 5 runs); "canary" releases; add real-page examples to the evaluation
+- [ ] 4. Weird inputs — page over 2 MB, JavaScript-only page, non-English, PDF/image URL, redirect loop, slow page, nonsense watch request
+- [ ] 7. Cost limits — minimum check frequency; daily AI budget
 
 **Tue Nov 10 — Execution history view.** Let a user see what the
 agent actually did, step by step.
