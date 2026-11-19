@@ -6,8 +6,9 @@
 #   1. python -I tests/scenarios/fake_release_site.py            (fake site on :5098)
 #   2. Start a SEPARATE Api on :5013 with a throwaway database:
 #        ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://localhost:5013 \
-#        CosmosDb__DatabaseName=WatchThisForMeScenario \
+#        CosmosDb__DatabaseName=WatchThisForMeScenario Sources__AllowPrivateAddresses=true \
 #        dotnet run --no-launch-profile --project src/WatchThisForMe.Api
+#      (AllowPrivateAddresses: the fake site is on localhost, which the SSRF guard refuses otherwise.)
 #   3. source tests/scenarios/outage_scenario.sh, then run step1 ... step5 in order,
 #      stopping/starting the :5013 Api where the steps say so.
 #   4. Clean up: dotnet run tests/scenarios/drop_database.cs WatchThisForMeScenario

@@ -36,6 +36,10 @@ public class WebPageSourceFetcher(HttpClient httpClient) : ISourceFetcher
         {
             return await httpClient.GetAsync(source, cancellationToken);
         }
+        catch (HttpRequestException ex) when (SourceServiceCollectionExtensions.IsBlocked(ex))
+        {
+            throw new HttpRequestException(BlockedAddressException.FriendlyMessage, ex);
+        }
         catch (HttpRequestException ex) when (ex.HttpRequestError == HttpRequestError.NameResolutionError)
         {
             throw new HttpRequestException(

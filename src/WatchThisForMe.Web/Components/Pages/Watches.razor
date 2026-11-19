@@ -254,6 +254,10 @@ else
                 naturalLanguageRequest = string.Empty;
                 await LoadSummariesAsync();
             }
+            else if (await RejectionReasonAsync(response) is { } reason)
+            {
+                errorMessage = reason;
+            }
             else
             {
                 errorMessage = "Couldn't create that watch. Try describing the source more specifically (e.g. a repo name or URL), or try again in a moment.";
@@ -318,6 +322,25 @@ else
         await CheckNow(id);
     }
 
+    // The Api explains a refused address (e.g. a private network) in the 400's "detail".
+    private static async Task<string?> RejectionReasonAsync(HttpResponseMessage? response)
+    {
+        if (response?.StatusCode != System.Net.HttpStatusCode.BadRequest)
+        {
+            return null;
+        }
+
+        try
+        {
+            var problem = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+            return problem.TryGetProperty("detail", out var detail) ? detail.GetString() : null;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return null;
+        }
+    }
+
     // ---- Editing a watch (name, address, what counts as meaningful) ----
 
     private string? editingId;
@@ -373,7 +396,7 @@ else
 
             if (response is null || !response.IsSuccessStatusCode)
             {
-                editError = "Couldn't save the changes. Please try again.";
+                editError = await RejectionReasonAsync(response) ?? "Couldn't save the changes. Please try again.";
                 return;
             }
         }

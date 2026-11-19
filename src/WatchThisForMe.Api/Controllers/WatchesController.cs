@@ -6,6 +6,7 @@ using WatchThisForMe.Core.Preferences;
 using WatchThisForMe.Core.Watches;
 using WatchThisForMe.Infrastructure.Embeddings;
 using WatchThisForMe.Infrastructure.Monitoring;
+using WatchThisForMe.Infrastructure.Sources;
 
 namespace WatchThisForMe.Api.Controllers;
 
@@ -18,11 +19,23 @@ public class WatchesController(
     IWatchRequestInterpreter requestInterpreter,
     IInvestigationAgent investigationAgent,
     IInterestProfileRepository interestProfileRepository,
-    IWatchExecutionRepository executionRepository) : ControllerBase
+    IWatchExecutionRepository executionRepository,
+    SourceAddressValidator sourceValidator) : ControllerBase
 {
+    // 400 with the reason in "detail", which the web app shows to the user.
+    private async Task<ActionResult?> RejectBadSourceAsync(SourceType sourceType, string source, CancellationToken cancellationToken) =>
+        await sourceValidator.ValidateAsync(sourceType, source, cancellationToken) is { } problem
+            ? Problem(detail: problem, statusCode: StatusCodes.Status400BadRequest, title: "This address can't be watched")
+            : null;
+
     [HttpPost]
     public async Task<ActionResult<Watch>> Create(CreateWatchRequest request, CancellationToken cancellationToken)
     {
+        if (await RejectBadSourceAsync(request.SourceType, request.Source, cancellationToken) is { } rejected)
+        {
+            return rejected;
+        }
+
         var watch = new Watch
         {
             Id = Guid.NewGuid().ToString(),
@@ -80,6 +93,12 @@ public class WatchesController(
         if (existing is null)
         {
             return NotFound();
+        }
+
+        if ((existing.Source != request.Source || existing.SourceType != request.SourceType)
+            && await RejectBadSourceAsync(request.SourceType, request.Source, cancellationToken) is { } rejected)
+        {
+            return rejected;
         }
 
         if (existing.Source != request.Source)
@@ -197,6 +216,12 @@ public class WatchesController(
     public async Task<ActionResult<Watch>> CreateFromNaturalLanguage(InterpretWatchRequest request, CancellationToken cancellationToken)
     {
         var draft = await requestInterpreter.InterpretAsync(request.Request, cancellationToken);
+
+        // The AI chose this address from the user's words, so it gets the same check.
+        if (await RejectBadSourceAsync(draft.SourceType, draft.Source, cancellationToken) is { } rejected)
+        {
+            return rejected;
+        }
 
         var watch = new Watch
         {
