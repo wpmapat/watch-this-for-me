@@ -47,7 +47,8 @@ last bit into the next session if something runs over.
 - [x] Extra (Nov 17): failure & load testing — 19 pipeline tests (50 total), 40-watch load test, Api-down handling (friendly message, `/health`, scheduler no longer crashes the Api on a database error)
 - [x] Extra (Nov 17): Resume button for stopped/paused watches (fresh set of 3 attempts after resuming); test proving a recovered site is compared against its last pre-outage snapshot
 - [x] Extra (Nov 18): fixed the critical diff bug (AI never saw the real change on real pages); moved/broken pages flagged + Edit button; cost audit fixes; full testing plan in `TESTING.md`
-- [ ] Next: SSRF fix, then a small in-app notifications build, then the rest of the testing plan
+- [x] Extra (Nov 19): SSRF protection (attacks shown working, then blocked); in-app notifications (never lost, never twice); fixed a false "page moved" alarm on the real Microsoft watch — 155 tests
+- [ ] Next (agreed order): prompt injection → AI-outage resilience → execution history view → demo prep; then correctness, weird inputs and the rest as time allows
 
 ---
 
@@ -265,10 +266,16 @@ never saw the actual change on real pages.
 - [x] Cost audit (Scenario 9): random ids (e.g. Microsoft's trace id) no longer count as changes; run records expire after 30 days; deleting a watch deletes its history — 11b8962 (97 tests)
 - [x] Full prioritized testing plan written in `TESTING.md` (13 areas, incl. concurrency and upgrade testing) — 2f9837f
 
-**Thu Nov 19 → rest of week — testing plan in table order (full detail in `TESTING.md`):**
-- [ ] 1. SSRF — refuse `localhost`, private IPs, `169.254.169.254`, and redirects into them — must be fixed before deploying
-- [ ] Notifications (small version, after SSRF): when a change matters, investigate automatically and produce the notification; in-app Notifications list; a retried check never notifies twice; tests. Real email waits for the Azure deploy.
-- [ ] 2. Prompt injection via watched page text
+**Thu Nov 19 (done):**
+- [x] 1. SSRF — the server could be made to read its own private data (`localhost`, disguised forms, cloud metadata); now refused at connect time (every redirect hop, no DNS rebinding) and when saving a watch — 4b6a6d6
+- [x] Notifications (small version): meaningful change → automatic investigation → notice on a new Notifications page; never lost (pending + retry), never twice (notice Id = change Id); first live notice produced — 87b32fb. Real email waits for the Azure deploy.
+- [x] Real-data bug: Microsoft watch wrongly shown as "moved" (`/investor` → `/investor/default`) — 24f7705
+
+**Fri Nov 20 → next week, agreed order:**
+- [ ] 2. Prompt injection — measure 4 attacks (hide real news, fake alarm, phishing via the notice, leaking data via the agent's tools) ~5 runs each, add defenses, re-measure (≈$0.30 of AI)
+- [ ] 5. AI-outage resilience — an OpenAI outage must not stop watches
+- [ ] Execution history view (below)
+- [ ] Demo prep (below)
 - [ ] 3. Correctness/grounding — redesign false alarm (2 of 5 runs); "canary" releases; add real-page examples to the evaluation
 - [ ] 4. Weird inputs — page over 2 MB, JavaScript-only page, non-English, PDF/image URL, redirect loop, slow page, nonsense watch request
 - [ ] 7. Cost limits — minimum check frequency; daily AI budget
