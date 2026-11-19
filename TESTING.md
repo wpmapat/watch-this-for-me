@@ -3,7 +3,7 @@
 How *Watch This for Me* is tested, what each test protects, the live failure scenarios
 we ran (and the bugs they found), and what isn't covered yet.
 
-Last updated: 2026-11-19 · 150 automated tests · 97-example AI evaluation · 11 live scenarios
+Last updated: 2026-11-19 · 155 automated tests · 97-example AI evaluation · 11 live scenarios
 
 ---
 
@@ -51,7 +51,7 @@ Cosmos DB emulator container. The live scenarios are manual — scripts in
 
 ---
 
-## Automated tests (150)
+## Automated tests (155)
 
 ### Check pipeline — `WatchCheckServiceTests` (21)
 Runs the real `WatchCheckService` against in-memory fakes ([`Fakes/TestDoubles.cs`](tests/WatchThisForMe.Tests/Fakes/TestDoubles.cs)):
@@ -108,12 +108,14 @@ fails the test instead of hiding behind shared objects. Runs in under a second, 
 | `SourceProblem_AfterAnOldFailure_ShowsTheCurrentProblemNotTheOldError` | a stale error hiding the real current problem |
 | `ChangeThatDiffsToNothing_IsNotALastChange` | "changed 1 h ago" when only a masked id differed |
 
-### Web fetcher (offline) — `WebPageSourceFetcherOfflineTests` (13)
+### Web fetcher (offline) — `WebPageSourceFetcherOfflineTests` (18)
 A stand-in HTTP handler plays the website, so status codes and redirects are exact and no
 network is needed. Friendly messages for 404/410, 403, 503 and an unknown domain (shown on
 the dashboard instead of "Response status code does not indicate success"); a redirect to
 another page/site/the homepage is reported; harmless redirects (http→https, `www.`, trailing
-slash, host capitalisation) are not.
+slash, host capitalisation, a folder's default page like `/investor` → `/investor/default`)
+are not. *Found Nov 19:* the real Microsoft Investor Relations watch was wrongly shown 🟡
+"redirects to …/investor/default" — fixed, and that exact case is now a test.
 
 ### Notifications — `NotificationTests` (11) + `CosmosNotificationRepositoryTests` (2)
 Through the full check pipeline with fakes: a meaningful change makes exactly one investigated

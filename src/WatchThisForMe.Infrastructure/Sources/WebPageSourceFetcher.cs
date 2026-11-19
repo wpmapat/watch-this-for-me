@@ -65,12 +65,24 @@ public class WebPageSourceFetcher(HttpClient httpClient) : ISourceFetcher
         };
     }
 
-    // Same host and path = same page. Ignores http->https upgrades, "www.", a trailing slash and
-    // host capitalisation, which sites redirect to all the time without the page moving.
+    // Same host and path = same page. Ignores http->https upgrades, "www.", a trailing slash,
+    // host capitalisation and a folder's default page (/investor -> /investor/default), which
+    // sites redirect to all the time without the page moving.
     internal static bool IsSamePage(string source, Uri final) =>
         Uri.TryCreate(source, UriKind.Absolute, out var requested)
         && string.Equals(WithoutWww(requested.Host), WithoutWww(final.Host), StringComparison.OrdinalIgnoreCase)
-        && string.Equals(requested.AbsolutePath.TrimEnd('/'), final.AbsolutePath.TrimEnd('/'), StringComparison.Ordinal);
+        && string.Equals(PagePath(requested), PagePath(final), StringComparison.Ordinal);
+
+    private static readonly string[] DefaultPageNames = ["default", "default.aspx", "default.htm", "default.html", "index", "index.html", "index.htm", "index.php"];
+
+    private static string PagePath(Uri address)
+    {
+        var path = address.AbsolutePath.TrimEnd('/');
+        var lastSegment = path[(path.LastIndexOf('/') + 1)..];
+        return DefaultPageNames.Contains(lastSegment, StringComparer.OrdinalIgnoreCase)
+            ? path[..path.LastIndexOf('/')]
+            : path;
+    }
 
     private static string WithoutWww(string host) =>
         host.StartsWith("www.", StringComparison.OrdinalIgnoreCase) ? host[4..] : host;

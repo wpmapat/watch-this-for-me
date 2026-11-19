@@ -97,6 +97,7 @@ public class WebPageSourceFetcherOfflineTests
     [InlineData("https://example.com/")]                 // sent to the homepage
     [InlineData("https://example.com/releases/v2")]      // page moved
     [InlineData("https://other-site.com/releases")]      // different site
+    [InlineData("https://example.com/releases/default-v2")] // not a default page, just starts like one
     public async Task RedirectToADifferentPage_IsReported(string finalAddress)
     {
         var snapshot = await Fetch(new FakeSite(HttpStatusCode.OK, finalAddress: finalAddress));
@@ -109,6 +110,10 @@ public class WebPageSourceFetcherOfflineTests
     [InlineData("https://example.com/releases", "https://www.example.com/releases")]
     [InlineData("https://example.com/releases", "https://example.com/releases/")]
     [InlineData("https://example.com/releases", "https://EXAMPLE.com/releases")]
+    [InlineData("https://www.microsoft.com/en-us/investor", "https://www.microsoft.com/en-us/investor/default")] // real, Nov 19
+    [InlineData("https://example.com/releases", "https://example.com/releases/index.html")]
+    [InlineData("https://example.com/releases/", "https://example.com/releases/Default.aspx")]
+    [InlineData("https://example.com/releases/index.php", "https://example.com/releases")]
     public async Task HarmlessRedirect_IsNotReported(string source, string finalAddress)
     {
         var snapshot = await Fetch(new FakeSite(HttpStatusCode.OK, finalAddress: finalAddress), source);
