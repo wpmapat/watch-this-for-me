@@ -3,6 +3,7 @@ using WatchThisForMe.Core.Notifications;
 using WatchThisForMe.Core.Observations;
 using WatchThisForMe.Core.Preferences;
 using WatchThisForMe.Core.Watches;
+using WatchThisForMe.Infrastructure.Ai;
 using WatchThisForMe.Infrastructure.Embeddings;
 
 namespace WatchThisForMe.Infrastructure.Notifications;
@@ -80,7 +81,7 @@ public class NotificationService(
                 : [];
             var interests = (await interestProfileRepository.GetAsync(cancellationToken)).Interests;
             var result = await investigationAgent.InvestigateAsync(
-                watch.Id, change.DiffSummary!, watch.MeaningfulChangeCriteria, similarPast, interests, cancellationToken);
+                watch.Id, watch.Source, change.DiffSummary!, watch.MeaningfulChangeCriteria, similarPast, interests, cancellationToken);
 
             if (result.Notification is not { } found)
             {
@@ -94,7 +95,8 @@ public class NotificationService(
         {
             // "Always" policy, trivial change: summarise it without the cost of investigating.
             notice = NewNotice(watch, change,
-                change.ClassificationSummary ?? "The page changed.",
+                // The classifier's summary is AI-written from page text too, so it gets the same link check.
+                PromptInjectionGuard.RemoveOffSiteLinks(change.ClassificationSummary ?? "The page changed.", watch.Source),
                 "Your watch is set to tell you about every change, including minor ones.",
                 change.Confidence,
                 [new EvidenceItem("Page changes", change.DiffSummary!)],
@@ -119,6 +121,7 @@ public class NotificationService(
         WhyItMatters = whyItMatters,
         Confidence = confidence,
         Evidence = evidence,
-        Investigated = investigated
+        Investigated = investigated,
+        SuspiciousText = PromptInjectionGuard.LooksLikeInjection(change.DiffSummary ?? "")
     };
 }

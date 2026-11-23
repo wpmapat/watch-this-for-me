@@ -46,6 +46,12 @@ else
                 {
                     <span class="badge text-bg-secondary mb-2">@n.Category.Replace('_', ' ')</span>
                 }
+                @if (n.SuspiciousText)
+                {
+                    <div class="alert alert-warning py-1 px-2 small mb-2" role="alert">
+                        This page contains text that seems written to steer an AI. Check the page yourself before acting on this notice.
+                    </div>
+                }
                 <p class="mb-1"><strong>What changed:</strong> @n.WhatChanged</p>
                 <p class="mb-2"><strong>Why it matters to you:</strong> @n.WhyItMatters</p>
                 @if (n.Evidence.Count > 0)

@@ -31,7 +31,8 @@ public class OpenAiChangeClassifier(OpenAiResponsesClient client) : IChangeClass
         + "or an unrelated page (such as the site's homepage) that has replaced the content the user is "
         + "watching. Then use the category exactly \"" + ChangeCategories.PageUnavailable + "\", meaningful=false, "
         + "and say in the summary what the page shows instead. Do NOT use it for a redesign or reworded page "
-        + "that still contains the content being watched - judge those normally.";
+        + "that still contains the content being watched - judge those normally."
+        + PromptInjectionGuard.Rules;
 
     private static readonly JsonElement Schema = JsonDocument.Parse("""
         {
@@ -68,7 +69,7 @@ public class OpenAiChangeClassifier(OpenAiResponsesClient client) : IChangeClass
             {pastContext}
 
             Diff of what changed:
-            {diffSummary}
+            {PromptInjectionGuard.PrepareDiff(diffSummary)}
             """;
 
         var root = await client.CreateStructuredResponseAsync(Instructions, input, "change_classification", Schema, cancellationToken);

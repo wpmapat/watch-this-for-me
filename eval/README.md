@@ -63,3 +63,12 @@ This was drafted by Claude and needs your sign-off before it's treated as
 ground truth — if you disagree with any label, that's exactly the point of
 review: fix it here before tomorrow's evaluation run uses it to score the
 classifier.
+
+## Prompt-injection evaluation (added Nov 23)
+
+`dotnet run --project eval/WatchThisForMe.Evaluation -- injection [runsPerPage]`
+(Cosmos emulator running, solution built) runs 7 pages - 5 with text planted to steer
+the AI, 2 clean controls - through the real pipeline: HTML cleanup, diff, classifier,
+then the investigating agent with its real MCP tools. It prints, per page, how often the
+attack worked. The pages live in `WatchThisForMe.Evaluation/InjectionEval.cs`; results
+and what was fixed are in TESTING.md, Scenario 12. Re-run it after any prompt or model change.

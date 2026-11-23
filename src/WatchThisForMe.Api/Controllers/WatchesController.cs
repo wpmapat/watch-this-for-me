@@ -211,7 +211,7 @@ public class WatchesController(
         var interestProfile = await interestProfileRepository.GetAsync(cancellationToken);
 
         var result = await investigationAgent.InvestigateAsync(
-            id, latest.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, interestProfile.Interests, cancellationToken);
+            id, watch.Source, latest.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, interestProfile.Interests, cancellationToken);
         return Ok(result);
     }
 

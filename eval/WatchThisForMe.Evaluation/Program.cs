@@ -21,6 +21,11 @@ services.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Warning));
 services.AddAiInterpretation(configuration);
 await using var provider = services.BuildServiceProvider();
 
+if (args is ["injection", ..])
+{
+    return await InjectionEval.RunAsync(configuration, provider, args);
+}
+
 var classifier = provider.GetRequiredService<IChangeClassifier>();
 
 var datasetPath = Path.Combine(AppContext.BaseDirectory, "dataset.json");
@@ -119,6 +124,7 @@ var summary = new
 };
 File.WriteAllText(Path.GetFullPath(outputPath), JsonSerializer.Serialize(summary, new JsonSerializerOptions { WriteIndented = true }));
 Console.WriteLine($"\nFull results written to {Path.GetFullPath(outputPath)}");
+return 0;
 
 record EvaluationExample(
     [property: JsonPropertyName("id")] string Id,

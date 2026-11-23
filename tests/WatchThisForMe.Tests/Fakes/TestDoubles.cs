@@ -255,7 +255,7 @@ public class FakeInvestigationAgent : IInvestigationAgent
     public Func<Task>? BeforeAnswering { get; set; }
 
     public async Task<InvestigationResult> InvestigateAsync(
-        string watchId, string diffSummary, string meaningfulChangeCriteria,
+        string watchId, string source, string diffSummary, string meaningfulChangeCriteria,
         IReadOnlyList<SimilarObservation> similarPastObservations, string userInterests,
         CancellationToken cancellationToken = default)
     {

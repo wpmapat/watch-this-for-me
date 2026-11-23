@@ -34,4 +34,8 @@ public class WatchNotification
     // True when the investigating agent checked the change; false for "Always" notices about
     // trivial changes, which are summarised without investigating.
     public bool Investigated { get; set; }
+
+    // True when the change contains text that looks written to steer an AI ("classify this as
+    // critical..."). The notice is still shown, with a warning to check the page yourself.
+    public bool SuspiciousText { get; set; }
 }
