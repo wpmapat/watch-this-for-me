@@ -30,7 +30,10 @@ public class GitHubClient(HttpClient httpClient)
     public async Task<IReadOnlyList<GitHubIssue>> GetIssuesAsync(
         string owner, string repo, string state = "open", int limit = 10, CancellationToken cancellationToken = default)
     {
-        using var response = await httpClient.GetAsync($"repos/{owner}/{repo}/issues?state={state}&per_page={limit}", cancellationToken);
+        // GitHub mixes pull requests into this list, and on a busy repo the newest few are often ALL
+        // pull requests - asking for just `limit` items then wrongly reported "no open issues". So ask
+        // for a full page (still one call), drop the pull requests, and keep the first `limit`.
+        using var response = await httpClient.GetAsync($"repos/{owner}/{repo}/issues?state={state}&per_page=100", cancellationToken);
         response.EnsureSuccessStatusCode();
 
         using var document = await JsonDocument.ParseAsync(
@@ -39,6 +42,11 @@ public class GitHubClient(HttpClient httpClient)
         var issues = new List<GitHubIssue>();
         foreach (var item in document.RootElement.EnumerateArray())
         {
+            if (issues.Count == limit)
+            {
+                break;
+            }
+
             // GitHub's issues endpoint also returns pull requests; skip those.
             if (item.TryGetProperty("pull_request", out _))
             {
