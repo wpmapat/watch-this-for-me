@@ -394,6 +394,8 @@ and the allowlist refused the remaining one. Telling the AI "this line is a mani
 did **not** stop the fake alarm (still 5/5) - it can't un-read a claim - so the flagged lines
 are now removed instead, which brought it to 0/5. Phishing never worked against this model;
 the link check is there for the model or wording that does (proven by the unit tests).
+The classifier's prompt changed, so the 97-example evaluation was re-run: 97/97 correct
+(was 96/97 - within run-to-run noise, so "no worse", not "better").
 
 *Also found:* `get_github_issues` reported "no open issues" for dotnet/runtime. GitHub mixes
 pull requests into its issues list; we asked for 10 items, and on a busy repo all 10 were
