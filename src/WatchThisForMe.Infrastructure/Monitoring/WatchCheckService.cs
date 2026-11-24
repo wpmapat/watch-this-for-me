@@ -104,13 +104,15 @@ public class WatchCheckService(
             execution.Status = WatchExecutionStatus.Failed;
             execution.CompletedAt = DateTimeOffset.UtcNow;
             execution.ErrorMessage = ex.Message;
+            execution.AiUnavailable = ex is AiUnavailableException;
             await executionRepository.UpdateAsync(execution, cancellationToken);
 
             activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
             activity?.AddException(ex);
             Telemetry.CheckFailures.Add(1, new KeyValuePair<string, object?>("watch.id", watchId));
 
-            if (execution.AttemptNumber >= DeadLetterThreshold)
+            // Only website failures stop a watch: an AI outage says nothing about the page.
+            if (!execution.AiUnavailable && execution.AttemptNumber >= DeadLetterThreshold)
             {
                 watch.Status = WatchStatus.DeadLettered;
                 await watchRepository.UpdateAsync(watch, cancellationToken);
@@ -124,13 +126,14 @@ public class WatchCheckService(
     }
 
     // Failures from before the user last resumed the watch don't count - resuming means
-    // "give it a fresh set of attempts", not "stop it again on the next hiccup".
+    // "give it a fresh set of attempts", not "stop it again on the next hiccup". An AI failure
+    // ends the streak too: on that run the website DID answer.
     private static int CountConsecutiveFailures(IReadOnlyList<WatchExecution> recentExecutionsMostRecentFirst, DateTimeOffset? resumedAt)
     {
         var count = 0;
         foreach (var execution in recentExecutionsMostRecentFirst)
         {
-            if (execution.Status != WatchExecutionStatus.Failed || execution.StartedAt < resumedAt)
+            if (execution.Status != WatchExecutionStatus.Failed || execution.AiUnavailable || execution.StartedAt < resumedAt)
             {
                 break;
             }
@@ -180,13 +183,13 @@ public class WatchCheckService(
             // Query embedding is of the raw diff, not a classification summary - we don't have
             // this change's own summary yet, that's the whole point of asking "have I seen
             // something like this before" ahead of classifying it.
-            var queryEmbedding = await TracedStepAsync("embed_diff", () => embeddingGenerator.GenerateAsync(observation.DiffSummary, cancellationToken));
+            var queryEmbedding = await TracedStepAsync("embed_diff", () => AiStepAsync(() => embeddingGenerator.GenerateAsync(observation.DiffSummary, cancellationToken), cancellationToken));
             var history = await observationRepository.ListAsync(watchId, MaxObservationsPerWatch, cancellationToken);
             var similarPast = EmbeddingSimilarity.FindTopMatches(queryEmbedding, history, MaxSimilarPastMatches);
             var interestProfile = await interestProfileRepository.GetAsync(cancellationToken);
 
-            var classification = await TracedStepAsync("classify", () => changeClassifier.ClassifyAsync(
-                observation.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, interestProfile.Interests, cancellationToken));
+            var classification = await TracedStepAsync("classify", () => AiStepAsync(() => changeClassifier.ClassifyAsync(
+                observation.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, interestProfile.Interests, cancellationToken), cancellationToken));
             observation.Category = classification.Category;
             // An error/"not found" page is never news in itself, whatever the model says.
             observation.Meaningful = classification.Meaningful && classification.Category != ChangeCategories.PageUnavailable;
@@ -195,7 +198,7 @@ public class WatchCheckService(
 
             // Embed the summary, not the raw diff - it's the compact, semantic statement of
             // what happened, which is what the similarity search matches against.
-            observation.Embedding = await TracedStepAsync("embed_summary", () => embeddingGenerator.GenerateAsync(classification.Summary, cancellationToken));
+            observation.Embedding = await TracedStepAsync("embed_summary", () => AiStepAsync(() => embeddingGenerator.GenerateAsync(classification.Summary, cancellationToken), cancellationToken));
         }
 
         // Decided now and stored with the change, so a failure later can't make us forget it.
@@ -282,6 +285,20 @@ public class WatchCheckService(
         foreach (var stale in all.Skip(MaxObservationsPerWatch))
         {
             await observationRepository.DeleteAsync(stale.Id, watchId, cancellationToken);
+        }
+    }
+
+    // Any failure inside an AI call is the AI's, whatever its type (network error, timeout, a
+    // reply we couldn't parse) - except our own cancellation (shutdown), which isn't a failure.
+    private static async Task<T> AiStepAsync<T>(Func<Task<T>> step, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await step();
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw AiUnavailableException.From(ex);
         }
     }
 

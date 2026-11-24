@@ -194,10 +194,13 @@ public class FakeEmbeddingGenerator : IEmbeddingGenerator
 {
     public int Calls { get; private set; }
 
+    // When set, every call throws this - simulates the AI service being down.
+    public Exception? FailWith { get; set; }
+
     public Task<float[]> GenerateAsync(string text, CancellationToken cancellationToken = default)
     {
         Calls++;
-        return Task.FromResult(new[] { 1f, 0f, 0f });
+        return FailWith is not null ? throw FailWith : Task.FromResult(new[] { 1f, 0f, 0f });
     }
 }
 

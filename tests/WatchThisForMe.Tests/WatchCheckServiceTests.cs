@@ -326,7 +326,7 @@ public class WatchCheckServiceTests
         await _service.CheckAsync(WatchId);
 
         _classifier.FailWith = new HttpRequestException("OpenAI unavailable");
-        await Assert.ThrowsAsync<HttpRequestException>(() => _service.CheckAsync(WatchId));
+        await Assert.ThrowsAsync<AiUnavailableException>(() => _service.CheckAsync(WatchId));
         Assert.Single(_observations.All); // nothing half-saved
 
         _classifier.FailWith = null;
@@ -338,6 +338,116 @@ public class WatchCheckServiceTests
         Assert.True(result.Meaningful);
         Assert.Contains("v2.0", result.DiffSummary);
         Assert.Equal(2, _observations.All.Count);
+    }
+
+    // ---- AI outages must not stop watches (testing plan row 5) ----
+
+    private async Task AiFailingCheck() =>
+        await Assert.ThrowsAsync<AiUnavailableException>(() => _service.CheckAsync(WatchId));
+
+    [Fact]
+    public async Task AIOutage_LongerThanThreeChecks_DoesNotStopTheWatch()
+    {
+        // The page changed just before OpenAI went down for five checks in a row.
+        _site.ThenReturns("v1.0 released");
+        for (var i = 0; i < 6; i++)
+        {
+            _site.ThenReturns("v1.0 released\nv2.0 released");
+        }
+
+        await _service.CheckAsync(WatchId);
+        _classifier.FailWith = new HttpRequestException("OpenAI unavailable");
+        for (var i = 0; i < 5; i++)
+        {
+            await AiFailingCheck();
+        }
+
+        // Before the fix the third of these stopped the watch.
+        Assert.Equal(WatchStatus.Active, (await CurrentWatch()).Status);
+        var failures = _executions.All.Skip(1).ToList();
+        Assert.All(failures, e => Assert.True(e.AiUnavailable));
+        Assert.All(failures, e => Assert.Equal(1, e.AttemptNumber)); // never a "retry streak"
+
+        // OpenAI is back: the change from before the outage is analysed, exactly once.
+        _classifier.FailWith = null;
+        var result = await _service.CheckAsync(WatchId);
+
+        Assert.NotNull(result);
+        Assert.Contains("v2.0", result.DiffSummary);
+        Assert.Equal(2, _observations.All.Count);
+        Assert.Equal(WatchExecutionStatus.Succeeded, _executions.All[^1].Status);
+    }
+
+    [Fact]
+    public async Task AIOutage_DuringEmbedding_IsAlsoAnAiFailure()
+    {
+        _site.ThenReturns("v1.0 released").ThenReturns("v1.0 released\nv2.0 released");
+        await _service.CheckAsync(WatchId);
+
+        _embeddings.FailWith = new TimeoutException("embedding call timed out");
+        await AiFailingCheck();
+
+        Assert.True(_executions.All[^1].AiUnavailable);
+        Assert.Single(_observations.All); // nothing half-saved
+    }
+
+    [Fact]
+    public async Task AIFailure_BreaksAWebsiteFailureStreak()
+    {
+        // The website fails twice, then answers (but the AI is down), then fails twice more.
+        // Never three WEBSITE failures in a row, so the watch must keep running.
+        _site.ThenReturns("v1.0 released")
+             .ThenFails().ThenFails()
+             .ThenReturns("v1.0 released\nv2.0 released")
+             .ThenFails().ThenFails();
+
+        await _service.CheckAsync(WatchId);
+        await FailingCheck();
+        await FailingCheck();
+        _classifier.FailWith = new HttpRequestException("OpenAI unavailable");
+        await AiFailingCheck();
+        await FailingCheck();
+        await FailingCheck();
+
+        Assert.Equal(WatchStatus.Active, (await CurrentWatch()).Status);
+        Assert.Equal([1, 1, 2, 3, 1, 2], _executions.All.Select(e => e.AttemptNumber));
+    }
+
+    [Fact]
+    public async Task WebsiteFailures_StillStopTheWatch_AfterAnAIFailure()
+    {
+        _site.ThenReturns("v1.0 released")
+             .ThenReturns("v1.0 released\nv2.0 released")
+             .ThenFails().ThenFails().ThenFails();
+
+        await _service.CheckAsync(WatchId);
+        _classifier.FailWith = new HttpRequestException("OpenAI unavailable");
+        await AiFailingCheck();
+        await FailingCheck();
+        await FailingCheck();
+        Assert.Equal(WatchStatus.Active, (await CurrentWatch()).Status);
+
+        await FailingCheck();
+
+        Assert.Equal(WatchStatus.DeadLettered, (await CurrentWatch()).Status);
+    }
+
+    [Theory]
+    [InlineData(System.Net.HttpStatusCode.Unauthorized, "rejected our API key")]
+    [InlineData(System.Net.HttpStatusCode.TooManyRequests, "out of credit")]
+    [InlineData(System.Net.HttpStatusCode.ServiceUnavailable, "temporarily unavailable")]
+    public async Task AIFailure_IsExplainedInPlainLanguage_OnTheDashboard(System.Net.HttpStatusCode status, string expected)
+    {
+        _site.ThenReturns("v1.0 released").ThenReturns("v1.0 released\nv2.0 released");
+        await _service.CheckAsync(WatchId);
+
+        _classifier.FailWith = new HttpRequestException("Response status code does not indicate success", null, status);
+        await AiFailingCheck();
+
+        var summary = WatchSummaryFactory.Create(await CurrentWatch(), [.. _executions.All.AsEnumerable().Reverse()], _observations.All);
+        Assert.Equal(WatchHealth.NeedsAttention, summary.Health);
+        Assert.Contains(expected, summary.LastError);
+        Assert.Contains("will be analysed on the next check", summary.LastError);
     }
 
     // ---- The page moves, breaks or gets a new address (Scenario 8) ----

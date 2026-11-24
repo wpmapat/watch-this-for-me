@@ -16,6 +16,11 @@ public class WatchExecution
 
     public string? ErrorMessage { get; set; }
 
+    // Failed because the AI couldn't analyse a change, not because the website failed. Such a
+    // run never counts toward stopping the watch. (Older records lack the field: false, which is
+    // right - before this existed every failure was treated as a website failure.)
+    public bool AiUnavailable { get; set; }
+
     // How many consecutive failed attempts this run represents, including itself if it fails.
     // 1 means this is the first attempt since the last success.
     public required int AttemptNumber { get; set; }
