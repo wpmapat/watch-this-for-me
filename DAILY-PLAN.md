@@ -47,9 +47,10 @@ last bit into the next session if something runs over.
 - [x] Extra (Nov 17): failure & load testing — 19 pipeline tests (50 total), 40-watch load test, Api-down handling (friendly message, `/health`, scheduler no longer crashes the Api on a database error)
 - [x] Extra (Nov 17): Resume button for stopped/paused watches (fresh set of 3 attempts after resuming); test proving a recovered site is compared against its last pre-outage snapshot
 - [x] Extra (Nov 18): fixed the critical diff bug (AI never saw the real change on real pages); moved/broken pages flagged + Edit button; cost audit fixes; full testing plan in `TESTING.md`
+- [x] Extra (Nov 24): an OpenAI outage no longer stops watches — 196 tests
 - [x] Extra (Nov 23): prompt-injection defenses, measured before/after with the real AI (fake alarm & data leak 5/5 → 0/5) — 188 tests
 - [x] Extra (Nov 19): SSRF protection (attacks shown working, then blocked); in-app notifications (never lost, never twice); fixed a false "page moved" alarm on the real Microsoft watch — 155 tests
-- [ ] Next (agreed order): AI-outage resilience → execution history view → demo prep; then correctness, weird inputs and the rest as time allows
+- [ ] Next (agreed order): execution history view → demo prep; then correctness, weird inputs and the rest as time allows
 
 ---
 
@@ -278,8 +279,10 @@ never saw the actual change on real pages.
 - [x] 2. Prompt injection — new eval mode (`-- injection`) runs planted-text pages through the real classifier + agent. Before: fake alarm 5/5, data leak 5/5 (the agent sent the user's criteria to an attacker address). Fixed: page text fenced as untrusted, AI-aimed lines removed before judging + warning on the notice, agent may only open the watched page or links on it, off-site links stripped from notices. After: 0/5 on every attack; classifier eval still 97/97 — 765ac8d (188 tests)
 - [x] Real bug: `get_github_issues` said "no open issues" on busy repos (newest 10 items were all pull requests) — the "flaky" test — a1c7481
 
+**Tue Nov 24 (done):**
+- [x] 5. AI-outage resilience — an AI failure (outage, bad key, no credit) no longer counts toward stopping a watch; the dashboard explains it in plain language; the change is analysed and notified once when the AI is back. Live test with a deliberately wrong API key: 5 failed checks, still Active, then recovered with one notice — 3574fbd (196 tests)
+
 **Next, agreed order:**
-- [ ] 5. AI-outage resilience — an OpenAI outage must not stop watches
 - [ ] Execution history view (below)
 - [ ] Demo prep (below)
 - [ ] 3. Correctness/grounding — redesign false alarm (2 of 5 runs); "canary" releases; add real-page examples to the evaluation
