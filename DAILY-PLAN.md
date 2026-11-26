@@ -47,10 +47,11 @@ last bit into the next session if something runs over.
 - [x] Extra (Nov 17): failure & load testing — 19 pipeline tests (50 total), 40-watch load test, Api-down handling (friendly message, `/health`, scheduler no longer crashes the Api on a database error)
 - [x] Extra (Nov 17): Resume button for stopped/paused watches (fresh set of 3 attempts after resuming); test proving a recovered site is compared against its last pre-outage snapshot
 - [x] Extra (Nov 18): fixed the critical diff bug (AI never saw the real change on real pages); moved/broken pages flagged + Edit button; cost audit fixes; full testing plan in `TESTING.md`
+- [x] Execution history view (Nov 25): every check records its steps (fetch, comparison, AI analysis, investigation, notice) with times and outcomes; History page per watch; a failed run shows the step it stopped at — 205 tests
 - [x] Extra (Nov 24): an OpenAI outage no longer stops watches — 196 tests
 - [x] Extra (Nov 23): prompt-injection defenses, measured before/after with the real AI (fake alarm & data leak 5/5 → 0/5) — 188 tests
 - [x] Extra (Nov 19): SSRF protection (attacks shown working, then blocked); in-app notifications (never lost, never twice); fixed a false "page moved" alarm on the real Microsoft watch — 155 tests
-- [ ] Next (agreed order): execution history view → demo prep; then correctness, weird inputs and the rest as time allows
+- [ ] Next (agreed order): demo prep; then correctness, weird inputs and the rest as time allows
 
 ---
 
@@ -244,7 +245,7 @@ Goal: make the existing product excellent — don't add new features.
 | Date | Day | Hrs | Focus | Status |
 |---|---|---|---|---|
 | Nov 9 | Mon | 2h | Dashboard UI polish (done Nov 17) | [x] |
-| Nov 10 | Tue | 3h | Execution history view | [ ] |
+| Nov 10 | Tue | 3h | Execution history view | [x] Nov 25 |
 | Nov 11 | Wed | 3h | Prepare Demo 1 + Demo 2 | [ ] |
 | Nov 12 | Thu | 3h | Prepare Demo 3 | [ ] |
 | Nov 13 | Fri | 3h | Final polish | [ ] |
@@ -283,7 +284,7 @@ never saw the actual change on real pages.
 - [x] 5. AI-outage resilience — an AI failure (outage, bad key, no credit) no longer counts toward stopping a watch; the dashboard explains it in plain language; the change is analysed and notified once when the AI is back. Live test with a deliberately wrong API key: 5 failed checks, still Active, then recovered with one notice — 3574fbd (196 tests)
 
 **Next, agreed order:**
-- [ ] Execution history view (below)
+- [x] Execution history view (below) — done Nov 25 (9d0f00b, 205 tests, TESTING.md Scenario 14)
 - [ ] Demo prep (below)
 - [ ] 3. Correctness/grounding — redesign false alarm (2 of 5 runs); "canary" releases; add real-page examples to the evaluation
 - [ ] 4. Weird inputs — page over 2 MB, JavaScript-only page, non-English, PDF/image URL, redirect loop, slow page, nonsense watch request
