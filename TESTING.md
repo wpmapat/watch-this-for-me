@@ -3,7 +3,7 @@
 How *Watch This for Me* is tested, what each test protects, the live failure scenarios
 we ran (and the bugs they found), and what isn't covered yet.
 
-Last updated: 2026-11-24 · 196 automated tests · 97-example AI evaluation · 7-page prompt-injection evaluation · 13 live scenarios
+Last updated: 2026-11-25 · 205 automated tests · 97-example AI evaluation · 7-page prompt-injection evaluation · 14 live scenarios
 
 ---
 
@@ -27,6 +27,7 @@ Last updated: 2026-11-24 · 196 automated tests · 97-example AI evaluation · 7
 | Cost & storage growth | 3 + 2 Cosmos | Scenario 9 (audit) | ✅ noisy random-id pages fixed · run records expire after 30 days · deleting a watch removes its history · ⚠️ no AI budget/limit yet |
 | Security: SSRF (watching internal addresses) | 40 | Scenario 10 | ✅ found (attacks worked) & fixed 2026-11-19 |
 | Security: prompt injection | 33 | Scenario 12 (real AI) | ✅ found (fake alarm 5/5, data leak 5/5) & fixed 2026-11-23 → 0/5 each · ⚠️ can't be fully solved, see open issues |
+| Execution history (what each check did) | 9 | Scenario 14 | ✅ built 2026-11-25: every check records its steps; History page per watch |
 | Notifications (in-app; email at deploy) | 14 + 2 Cosmos | Scenario 11 | ✅ built 2026-11-19: never lost, never twice, old changes never notified |
 | Weird inputs | — | — | ❌ not tested yet |
 
@@ -54,7 +55,7 @@ Cosmos DB emulator container. The live scenarios are manual — scripts in
 
 ---
 
-## Automated tests (196)
+## Automated tests (205)
 
 ### Check pipeline — `WatchCheckServiceTests` (28)
 Runs the real `WatchCheckService` against in-memory fakes ([`Fakes/TestDoubles.cs`](tests/WatchThisForMe.Tests/Fakes/TestDoubles.cs)):
@@ -170,6 +171,16 @@ with the "Always" policy); the agent disagreeing means no notice, with the reaso
 - Notices from pages with AI-aimed text carry the warning; ordinary ones don't; "Always"
   short notices get the same link check (the classifier's summary is written from page text).
 - *Mutation check:* allowlist switched off → 4 tests fail; link check switched off → 3 fail.
+
+### Execution history — `ExecutionHistoryTests` (9)
+Each kind of check tells the right story, in order: first look (fetch, "starting point");
+no change (fetch, comparison - shown as one quiet line); meaningful change (fetch, "2 lines
+added", AI ★, investigation ★, notice ★); unimportant change ("No notice: doesn't match what
+you asked for", no investigation); investigation disagrees (false alarm avoided); error page
+(⚠ on the AI step, no notice); failed fetch and AI outage (the run stops at a ✗ step with the
+plain-language reason); a failed notice (⚠, the check still succeeds) and its retry on the
+next, unchanged check. Percentages are written without the machine's culture, so CI on Linux
+prints the same text. *Mutation check:* not recording a step that fails → 2 tests fail.
 
 ### Text processing — `HtmlNormalizerTests` (5), `VolatileContentNormalizerTests` (13), `TextDifferTests` (3)
 Strip scripts/styles/tags; one line per block (heading, paragraph, list item, table row)
@@ -422,6 +433,22 @@ failures count toward stopping a watch, and an AI failure also ends a streak of 
 failures (that run, the site answered). Nothing is lost because a change is only saved once
 it has been analysed - the next check sees the same difference again. Notices already retried
 on their own (Nov 19). *Mutation check:* counting AI failures again makes 3 tests fail.
+
+### Scenario 14 — Execution history: what did each check actually do? (2026-11-25)
+Fake site + scenario Api + Web. One watch, five checks: baseline, no change, a security
+release (CVE, remote code execution), site down (503), a typo fix. The History page showed:
+
+| Check | Timeline |
+|---|---|
+| Baseline | ✓ fetch (62 characters) → ✓ "First look, saved as the starting point" |
+| No change | one quiet line: Checked · No change · 2.1 s |
+| Security release | ✓ fetch → ✓ 2 lines added → ★ AI "Meaningful - security fix, 90% sure" (5.1 s) → ★ investigation "2 pieces of evidence" (11.7 s) → ★ "Sent you a notice" |
+| Site down | ✗ fetch "The site is having problems (503)…" (15.1 s) - the run stops there |
+| Typo fix | "retry after 1 failed check" · ✓ AI "Not important - minor wording" → ✓ "No notice" |
+
+*Noticed thanks to the timeline:* every fetch of the local fake site took ~2 s. Probably
+Windows trying IPv6 `localhost` before IPv4 (test setup, not the app) - not yet confirmed
+against real sites.
 
 ---
 

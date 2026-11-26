@@ -24,4 +24,8 @@ public class WatchExecution
     // How many consecutive failed attempts this run represents, including itself if it fails.
     // 1 means this is the first attempt since the last success.
     public required int AttemptNumber { get; set; }
+
+    // What the run did, in order - saved when the run ends. Empty for runs recorded before
+    // Nov 25 2026, and for a run that is still going (or crashed before it could be saved).
+    public List<ExecutionStep> Steps { get; set; } = [];
 }

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using WatchThisForMe.Core.Executions;
 using WatchThisForMe.Core.Notifications;
 using WatchThisForMe.Core.Observations;
 using WatchThisForMe.Core.Preferences;
@@ -33,8 +34,10 @@ public class NotificationService(
 
     // Makes every notice this watch still owes. Never throws (except on cancellation): a failed
     // notice must not fail the check - it stays pending and is retried on the next check.
-    public async Task NotifyPendingAsync(Watch watch, CancellationToken cancellationToken = default)
+    // What happened is added to `steps` (the run's story on the history page), when given.
+    public async Task NotifyPendingAsync(Watch watch, List<ExecutionStep>? steps = null, CancellationToken cancellationToken = default)
     {
+        var lookupStartedAt = DateTimeOffset.UtcNow;
         IReadOnlyList<Observation> recent;
         try
         {
@@ -43,15 +46,18 @@ public class NotificationService(
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             logger.LogWarning(ex, "Couldn't look for pending notices of watch {WatchId}; will retry on the next check", watch.Id);
+            steps?.Add(ExecutionStep.EndingNow("Notice", lookupStartedAt, StepOutcome.Warning,
+                $"Couldn't check for notices still owed ({ex.Message}). Will try again on the next check."));
             return;
         }
 
         // Oldest first, so notices appear in the order the changes happened.
         foreach (var change in recent.Where(o => o.NotificationPending == true).OrderBy(o => o.CheckedAt))
         {
+            var startedAt = DateTimeOffset.UtcNow;
             try
             {
-                change.NotificationOutcome = await MakeNoticeAsync(watch, change, recent, cancellationToken);
+                change.NotificationOutcome = await MakeNoticeAsync(watch, change, recent, steps, cancellationToken);
                 change.NotificationPending = false;
                 await observationRepository.UpdateAsync(change, cancellationToken);
             }
@@ -59,16 +65,20 @@ public class NotificationService(
             {
                 logger.LogWarning(ex, "Couldn't make the notice for change {ObservationId} of watch {WatchId}; will retry on the next check",
                     change.Id, watch.Id);
+                steps?.Add(ExecutionStep.EndingNow("Notice", startedAt, StepOutcome.Warning,
+                    $"Couldn't finish the notice ({ex.Message}). The change isn't forgotten - it will be tried again on the next check."));
             }
         }
     }
 
     // Returns the outcome to record on the change.
-    private async Task<string> MakeNoticeAsync(Watch watch, Observation change, IReadOnlyList<Observation> recent, CancellationToken cancellationToken)
+    private async Task<string> MakeNoticeAsync(
+        Watch watch, Observation change, IReadOnlyList<Observation> recent, List<ExecutionStep>? steps, CancellationToken cancellationToken)
     {
         // Made on an earlier attempt that crashed before clearing the mark: don't pay the AI again.
         if (await notificationRepository.GetAsync(change.Id, watch.Id, cancellationToken) is not null)
         {
+            steps?.Add(ExecutionStep.EndingNow("Notice", DateTimeOffset.UtcNow, StepOutcome.Ok, "Already sent on an earlier attempt."));
             return SentOutcome;
         }
 
@@ -80,14 +90,20 @@ public class NotificationService(
                 ? EmbeddingSimilarity.FindTopMatches(embedding, recent.Where(o => o.Id != change.Id), topN: 3)
                 : [];
             var interests = (await interestProfileRepository.GetAsync(cancellationToken)).Interests;
+            var investigationStartedAt = DateTimeOffset.UtcNow;
             var result = await investigationAgent.InvestigateAsync(
                 watch.Id, watch.Source, change.DiffSummary!, watch.MeaningfulChangeCriteria, similarPast, interests, cancellationToken);
 
             if (result.Notification is not { } found)
             {
                 // The closer look disagreed with the quick classification - a false alarm avoided.
+                steps?.Add(ExecutionStep.EndingNow("Investigation", investigationStartedAt, StepOutcome.Ok,
+                    $"On a closer look it didn't seem to matter, so no notice. {result.Classification.Summary}"));
                 return $"Not sent: on a closer look it didn't seem to matter. {result.Classification.Summary}";
             }
+
+            steps?.Add(ExecutionStep.EndingNow("Investigation", investigationStartedAt, StepOutcome.Highlight,
+                $"Confirmed it matters, with {Pieces(found.Evidence.Count)} of evidence."));
 
             notice = NewNotice(watch, change, found.WhatChanged, found.WhyItMatters, found.Confidence, [.. found.Evidence], investigated: true);
         }
@@ -103,9 +119,14 @@ public class NotificationService(
                 investigated: false);
         }
 
+        var sendStartedAt = DateTimeOffset.UtcNow;
         await notificationRepository.TryCreateAsync(notice, cancellationToken); // false = already there; fine either way
+        steps?.Add(ExecutionStep.EndingNow("Notice", sendStartedAt, StepOutcome.Highlight,
+            (notice.Investigated ? "Sent you a notice: " : "Sent you a short notice (this watch reports every change): ") + notice.WhatChanged));
         return SentOutcome;
     }
+
+    private static string Pieces(int n) => n == 1 ? "1 piece" : $"{n} pieces";
 
     private static WatchNotification NewNotice(
         Watch watch, Observation change, string whatChanged, string whyItMatters, double? confidence, List<EvidenceItem> evidence, bool investigated) => new()

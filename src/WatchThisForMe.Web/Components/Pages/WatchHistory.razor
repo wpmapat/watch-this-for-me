@@ -1,0 +1,205 @@
+@page "/watches/{Id}/history"
+@rendermode InteractiveServer
+@using System.Net.Http.Json
+@using System.Text.Json
+@using System.Text.Json.Serialization
+@using WatchThisForMe.Core.Executions
+@using WatchThisForMe.Core.Watches
+@inject ApiClient Api
+
+<PageTitle>History - @(watch?.Name ?? "Watch")</PageTitle>
+
+<p class="mb-2"><a href="watches">&larr; My Watches</a></p>
+<h1>@(watch?.Name ?? "Watch history")</h1>
+@if (watch is not null)
+{
+    <p class="text-muted mb-1 small text-break">
+        <a href="@watch.Source" target="_blank" rel="noopener noreferrer">@watch.Source</a>
+    </p>
+}
+<p class="text-muted mb-4">
+    What the app did on each of the last @RunsToShow checks of this page, newest first: fetching the page,
+    comparing it with last time, asking the AI whether the change matters, investigating, and telling you.
+</p>
+
+@if (serviceProblem is not null)
+{
+    <div class="alert alert-warning d-flex justify-content-between align-items-center" role="alert">
+        <strong>@serviceProblem</strong>
+        <button class="btn btn-sm btn-outline-dark ms-3" @onclick="LoadAsync">Try again</button>
+    </div>
+}
+
+@if (notFound)
+{
+    <p>This watch doesn't exist any more.</p>
+}
+else if (runs is null)
+{
+    @if (serviceProblem is null)
+    {
+        <p><em>Loading...</em></p>
+    }
+}
+else if (runs.Count == 0)
+{
+    <p>This watch hasn't been checked yet.</p>
+}
+else
+{
+    <div class="d-flex justify-content-end mb-2">
+        <button class="btn btn-sm btn-outline-secondary" @onclick="LoadAsync">Refresh</button>
+    </div>
+
+    @foreach (var run in runs)
+    {
+        var (label, css) = RunResult(run);
+
+        @if (IsQuiet(run))
+        {
+            // The common case - fetched, nothing changed. One line, so the runs that did something stand out.
+            <div class="d-flex flex-wrap gap-2 align-items-baseline border-bottom py-2 small text-muted">
+                <span class="text-nowrap" title="@run.StartedAt.ToLocalTime().ToString("F")">@run.StartedAt.ToLocalTime().ToString("g")</span>
+                <span class="badge @css">@label</span>
+                <span>No change.</span>
+                <span class="ms-auto text-nowrap">@FormatDuration(run)</span>
+            </div>
+            continue;
+        }
+
+        <div class="card my-3">
+            <div class="card-header d-flex flex-wrap gap-2 align-items-baseline">
+                <strong class="text-nowrap" title="@run.StartedAt.ToLocalTime().ToString("F")">@run.StartedAt.ToLocalTime().ToString("g")</strong>
+                <span class="badge @css">@label</span>
+                @if (run.AttemptNumber > 1)
+                {
+                    <span class="small text-muted">retry after @(run.AttemptNumber == 2 ? "1 failed check" : $"{run.AttemptNumber - 1} failed checks")</span>
+                }
+                <span class="ms-auto small text-muted text-nowrap">@FormatDuration(run)</span>
+            </div>
+            <div class="card-body py-2">
+                @if (run.Steps.Count == 0)
+                {
+                    <p class="small text-muted mb-1">
+                        @(run.CompletedAt is null
+                            ? "No step details: this check hadn't finished when it was last saved."
+                            : "No step details: this check ran before step-by-step history was recorded.")
+                    </p>
+                }
+                else
+                {
+                    <ol class="list-unstyled mb-0">
+                        @foreach (var step in run.Steps)
+                        {
+                            <li class="d-flex gap-2 py-1">
+                                <span class="@StepCss(step.Outcome)" style="width: 1.25rem; flex-shrink: 0;" title="@step.Outcome">@StepIcon(step.Outcome)</span>
+                                <div class="flex-grow-1" style="min-width: 0;">
+                                    <strong>@step.Name</strong>
+                                    @if (!string.IsNullOrEmpty(step.Detail))
+                                    {
+                                        <div class="small text-break">@step.Detail</div>
+                                    }
+                                </div>
+                                <span class="small text-muted text-nowrap" title="Started @FormatSeconds((step.StartedAt - run.StartedAt).TotalMilliseconds) into the check">
+                                    @FormatSeconds(step.DurationMs)
+                                </span>
+                            </li>
+                        }
+                    </ol>
+                }
+                @if (run.ErrorMessage is not null && !run.Steps.Any(s => s.Outcome == StepOutcome.Failed))
+                {
+                    // Failed somewhere no step covers (e.g. saving to the database): still say why.
+                    <p class="small text-danger mb-1 mt-1">✗ @run.ErrorMessage</p>
+                }
+            </div>
+        </div>
+    }
+}
+
+@code {
+    private const int RunsToShow = 20;
+
+    // A run still "going" after this long was cut off (app restart) - it will never finish.
+    private static readonly TimeSpan UnfinishedAfter = TimeSpan.FromMinutes(10);
+
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        Converters = { new JsonStringEnumConverter() }
+    };
+
+    [Parameter] public string Id { get; set; } = "";
+
+    private Watch? watch;
+    private List<WatchExecution>? runs;
+    private bool notFound;
+    private string? serviceProblem;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            var client = await Api.CreateAsync();
+            var watchResponse = await client.GetAsync($"api/watches/{Uri.EscapeDataString(Id)}");
+            if (watchResponse.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                notFound = true;
+                return;
+            }
+
+            watchResponse.EnsureSuccessStatusCode();
+            watch = await watchResponse.Content.ReadFromJsonAsync<Watch>(JsonOptions);
+            runs = await client.GetFromJsonAsync<List<WatchExecution>>(
+                $"api/watches/{Uri.EscapeDataString(Id)}/executions?count={RunsToShow}", JsonOptions) ?? [];
+            serviceProblem = null;
+        }
+        catch (HttpRequestException ex)
+        {
+            serviceProblem = ex.StatusCode is null ? "We can't reach the monitoring service right now." : "The monitoring service ran into a problem.";
+        }
+        catch (TaskCanceledException)
+        {
+            serviceProblem = "The monitoring service is taking too long to respond.";
+        }
+    }
+
+    private static bool IsQuiet(WatchExecution run) =>
+        run.Status == WatchExecutionStatus.Succeeded
+        && run.Steps.Count > 0
+        && run.Steps.All(s => s.Outcome == StepOutcome.Ok)
+        && run.Steps.Any(s => s.Name == "Comparison" && s.Detail == "No change since the last check.");
+
+    private static (string Label, string Css) RunResult(WatchExecution run) => run.Status switch
+    {
+        WatchExecutionStatus.Succeeded => ("Checked", "text-bg-success"),
+        WatchExecutionStatus.Failed when run.AiUnavailable => ("AI unavailable", "text-bg-warning"),
+        WatchExecutionStatus.Failed => ("Failed", "text-bg-danger"),
+        _ when DateTimeOffset.UtcNow - run.StartedAt > UnfinishedAfter => ("Didn't finish", "text-bg-secondary"),
+        _ => ("Running…", "text-bg-info")
+    };
+
+    private static string StepIcon(StepOutcome outcome) => outcome switch
+    {
+        StepOutcome.Highlight => "★",
+        StepOutcome.Warning => "⚠",
+        StepOutcome.Failed => "✗",
+        _ => "✓"
+    };
+
+    private static string StepCss(StepOutcome outcome) => outcome switch
+    {
+        StepOutcome.Highlight => "text-primary",
+        StepOutcome.Warning => "text-warning-emphasis",
+        StepOutcome.Failed => "text-danger",
+        _ => "text-success"
+    };
+
+    private static string FormatDuration(WatchExecution run) =>
+        run.CompletedAt is { } completed ? FormatSeconds((completed - run.StartedAt).TotalMilliseconds) : "";
+
+    private static string FormatSeconds(double milliseconds) =>
+        milliseconds < 1000 ? $"{Math.Max(0, milliseconds):0} ms" : $"{milliseconds / 1000:0.0} s";
+}

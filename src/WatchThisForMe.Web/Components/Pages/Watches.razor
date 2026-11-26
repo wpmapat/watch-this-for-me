@@ -125,6 +125,8 @@ else
                                 @(checkingIds.Contains(watch.Id) ? "Resuming..." : "Resume")
                             </button>
                         }
+                        <a class="btn btn-sm btn-outline-secondary" href="@($"watches/{Uri.EscapeDataString(watch.Id)}/history")"
+                           title="What the app did on each recent check of this page">History</a>
                         <button class="btn btn-sm btn-outline-secondary" @onclick="() => StartEdit(watch)">Edit</button>
                         <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteWatch(watch.Id)">Delete</button>
                     </td>

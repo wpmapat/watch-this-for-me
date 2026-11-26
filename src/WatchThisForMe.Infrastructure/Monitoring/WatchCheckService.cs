@@ -90,7 +90,7 @@ public class WatchCheckService(
 
         try
         {
-            var result = await RunCheckAsync(watch, watchId, cancellationToken);
+            var result = await RunCheckAsync(watch, watchId, execution.Steps, cancellationToken);
 
             execution.Status = WatchExecutionStatus.Succeeded;
             execution.CompletedAt = DateTimeOffset.UtcNow;
@@ -144,9 +144,14 @@ public class WatchCheckService(
         return count;
     }
 
-    private async Task<Observation?> RunCheckAsync(Watch watch, string watchId, CancellationToken cancellationToken)
+    // Each step a person would care about is added to `steps`, which the history page shows.
+    private async Task<Observation?> RunCheckAsync(Watch watch, string watchId, List<ExecutionStep> steps, CancellationToken cancellationToken)
     {
-        var snapshot = await TracedStepAsync("fetch", () => sourceFetcher.FetchAsync(watch.Source, cancellationToken));
+        var snapshot = await RecordStepAsync(steps, "Page fetch",
+            () => TracedStepAsync("fetch", () => sourceFetcher.FetchAsync(watch.Source, cancellationToken)),
+            DescribeFetch);
+
+        var compareStartedAt = DateTimeOffset.UtcNow;
         var previous = await observationRepository.GetLatestAsync(watchId, cancellationToken);
         var changed = previous is null || previous.ContentHash != snapshot.ContentHash;
 
@@ -158,7 +163,8 @@ public class WatchCheckService(
         {
             // Same content as last time, so the AI's verdict on it (incl. "page unavailable") stands.
             // A notice that failed last time is retried even though nothing new happened.
-            await notificationService.NotifyPendingAsync(watch, cancellationToken);
+            steps.Add(ExecutionStep.EndingNow("Comparison", compareStartedAt, StepOutcome.Ok, "No change since the last check."));
+            await notificationService.NotifyPendingAsync(watch, steps, cancellationToken);
             return previous;
         }
 
@@ -177,32 +183,43 @@ public class WatchCheckService(
                 ? null
                 : TracedStep("diff", () => TextDiffer.Summarize(compareWith, snapshot.NormalizedContent))
         };
+        steps.Add(ExecutionStep.EndingNow("Comparison", compareStartedAt, StepOutcome.Ok, DescribeComparison(previous, observation.DiffSummary)));
 
         if (!string.IsNullOrEmpty(observation.DiffSummary))
         {
-            // Query embedding is of the raw diff, not a classification summary - we don't have
-            // this change's own summary yet, that's the whole point of asking "have I seen
-            // something like this before" ahead of classifying it.
-            var queryEmbedding = await TracedStepAsync("embed_diff", () => AiStepAsync(() => embeddingGenerator.GenerateAsync(observation.DiffSummary, cancellationToken), cancellationToken));
-            var history = await observationRepository.ListAsync(watchId, MaxObservationsPerWatch, cancellationToken);
-            var similarPast = EmbeddingSimilarity.FindTopMatches(queryEmbedding, history, MaxSimilarPastMatches);
-            var interestProfile = await interestProfileRepository.GetAsync(cancellationToken);
+            // One step on the history page for all three AI calls - the separate timings are in the traces.
+            await RecordStepAsync(steps, "AI analysis", async () =>
+            {
+                // Query embedding is of the raw diff, not a classification summary - we don't have
+                // this change's own summary yet, that's the whole point of asking "have I seen
+                // something like this before" ahead of classifying it.
+                var queryEmbedding = await TracedStepAsync("embed_diff", () => AiStepAsync(() => embeddingGenerator.GenerateAsync(observation.DiffSummary, cancellationToken), cancellationToken));
+                var history = await observationRepository.ListAsync(watchId, MaxObservationsPerWatch, cancellationToken);
+                var similarPast = EmbeddingSimilarity.FindTopMatches(queryEmbedding, history, MaxSimilarPastMatches);
+                var interestProfile = await interestProfileRepository.GetAsync(cancellationToken);
 
-            var classification = await TracedStepAsync("classify", () => AiStepAsync(() => changeClassifier.ClassifyAsync(
-                observation.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, interestProfile.Interests, cancellationToken), cancellationToken));
-            observation.Category = classification.Category;
-            // An error/"not found" page is never news in itself, whatever the model says.
-            observation.Meaningful = classification.Meaningful && classification.Category != ChangeCategories.PageUnavailable;
-            observation.Confidence = classification.Confidence;
-            observation.ClassificationSummary = classification.Summary;
+                var classification = await TracedStepAsync("classify", () => AiStepAsync(() => changeClassifier.ClassifyAsync(
+                    observation.DiffSummary, watch.MeaningfulChangeCriteria, similarPast, interestProfile.Interests, cancellationToken), cancellationToken));
+                observation.Category = classification.Category;
+                // An error/"not found" page is never news in itself, whatever the model says.
+                observation.Meaningful = classification.Meaningful && classification.Category != ChangeCategories.PageUnavailable;
+                observation.Confidence = classification.Confidence;
+                observation.ClassificationSummary = classification.Summary;
 
-            // Embed the summary, not the raw diff - it's the compact, semantic statement of
-            // what happened, which is what the similarity search matches against.
-            observation.Embedding = await TracedStepAsync("embed_summary", () => AiStepAsync(() => embeddingGenerator.GenerateAsync(classification.Summary, cancellationToken), cancellationToken));
+                // Embed the summary, not the raw diff - it's the compact, semantic statement of
+                // what happened, which is what the similarity search matches against.
+                observation.Embedding = await TracedStepAsync("embed_summary", () => AiStepAsync(() => embeddingGenerator.GenerateAsync(classification.Summary, cancellationToken), cancellationToken));
+                return observation;
+            }, DescribeVerdict);
         }
 
         // Decided now and stored with the change, so a failure later can't make us forget it.
         observation.NotificationPending = NotificationService.ShouldNotify(watch, observation);
+        if (observation.NotificationPending != true && observation.Meaningful is not null && observation.Category != ChangeCategories.PageUnavailable)
+        {
+            steps.Add(ExecutionStep.EndingNow("Notice", DateTimeOffset.UtcNow, StepOutcome.Ok,
+                "No notice: this change doesn't match what you asked to hear about."));
+        }
 
         var created = await TracedStepAsync("save", () => observationRepository.CreateAsync(observation, cancellationToken));
         await PruneOldObservationsAsync(watchId, cancellationToken);
@@ -217,9 +234,76 @@ public class WatchCheckService(
         }
 
         // This change's notice, plus any earlier one that failed and is still owed.
-        await TracedStepAsync("notify", async () => { await notificationService.NotifyPendingAsync(watch, cancellationToken); return 0; });
+        await TracedStepAsync("notify", async () => { await notificationService.NotifyPendingAsync(watch, steps, cancellationToken); return 0; });
 
         return created;
+    }
+
+    // Runs one step of the run's story and adds it to the story - with the error if it fails,
+    // so the history shows exactly where a failed run stopped.
+    private static async Task<T> RecordStepAsync<T>(
+        List<ExecutionStep> steps, string name, Func<Task<T>> step, Func<T, (StepOutcome Outcome, string Detail)> describe)
+    {
+        var startedAt = DateTimeOffset.UtcNow;
+        T result;
+        try
+        {
+            result = await step();
+        }
+        catch (Exception ex)
+        {
+            steps.Add(ExecutionStep.EndingNow(name, startedAt, StepOutcome.Failed, ex.Message));
+            throw;
+        }
+
+        var (outcome, detail) = describe(result);
+        steps.Add(ExecutionStep.EndingNow(name, startedAt, outcome, detail));
+        return result;
+    }
+
+    private static (StepOutcome, string) DescribeFetch(SourceSnapshot snapshot) => (StepOutcome.Ok,
+        $"Read {snapshot.NormalizedContent.Length:N0} characters of text."
+        + (snapshot.RedirectedTo is null ? "" : $" The address now redirects to {snapshot.RedirectedTo}."));
+
+    private static string DescribeComparison(Observation? previous, string? diffSummary)
+    {
+        if (previous is null)
+        {
+            return "First look at this page - saved as the starting point for later checks.";
+        }
+
+        if (diffSummary is null)
+        {
+            return "Saved as a new starting point (the address changed, or the old copy can't be compared).";
+        }
+
+        var lines = diffSummary.Split('\n');
+        var added = lines.Count(l => l.StartsWith("+ ", StringComparison.Ordinal));
+        var removed = lines.Count(l => l.StartsWith("- ", StringComparison.Ordinal));
+        if (added + removed == 0)
+        {
+            return "The page's text differs, but no line changed in a way that counts - nothing to analyse.";
+        }
+
+        var more = diffSummary.Contains("more changed lines omitted", StringComparison.Ordinal) ? ", and more" : "";
+        return $"The page changed: {Lines(added)} added, {Lines(removed)} removed{more}.";
+
+        static string Lines(int n) => n == 1 ? "1 line" : $"{n} lines";
+    }
+
+    private static (StepOutcome, string) DescribeVerdict(Observation judged)
+    {
+        var category = judged.Category?.Replace('_', ' ') ?? "uncategorised";
+        var sure = judged.Confidence is { } confidence ? $", {Math.Round(confidence * 100)}% sure" : "";
+
+        if (judged.Category == ChangeCategories.PageUnavailable)
+        {
+            return (StepOutcome.Warning, $"Looks like an error or unavailable page, not a real change. {judged.ClassificationSummary}");
+        }
+
+        return judged.Meaningful == true
+            ? (StepOutcome.Highlight, $"Meaningful - {category}{sure}. {judged.ClassificationSummary}")
+            : (StepOutcome.Ok, $"Not important - {category}{sure}. {judged.ClassificationSummary}");
     }
 
     // The earlier page text the new content should be diffed against, or null to save it as a
